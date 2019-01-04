@@ -1,5 +1,7 @@
 /*
-    C socket server example
+    C socket server simples
+    aceita apenas um client
+    quando o client desconecta, o servidor finaliza
 */
 
 #include<stdio.h>
@@ -57,6 +59,7 @@ int main(int argc , char *argv[])
     {
         //Send the message back to client
         write(client_sock , client_message , strlen(client_message));
+        printf("message: %s\n", client_message);
         memset( &client_message, 0, sizeof(client_message));
     }
 

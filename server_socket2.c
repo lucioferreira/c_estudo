@@ -18,27 +18,28 @@ int main(int argc , char *argv[])
 {
     int socket_desc , client_sock , c , pid;
     struct sockaddr_in server , client;
+    int port = 8888;
 
     //Create socket
     socket_desc = socket(AF_INET , SOCK_STREAM , 0);
     if (socket_desc == -1) {
-        printf("Could not create socket");
+        printf("Erro ao criar o socket\n");
     }
-    puts("Socket created");
+    puts("Socket criado com sucesso");
 
     //Prepare the sockaddr_in structure
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons( 8888 );
+    server.sin_port = htons( port );
 
     //Bind
     if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
     {
         //print the error message
-        perror("bind failed. Error");
+        perror("bind falhou. Erro");
         return 1;
     }
-    puts("bind done");
+    printf("bind ok na porta %d\n", port);
 
     //Listen
     listen(socket_desc , 3);

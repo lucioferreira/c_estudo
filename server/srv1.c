@@ -3,21 +3,31 @@
     aceita mais de um client
     loop eterno
     cria um processo separado com fork para cada conexão
+    
+    gcc -o srv1 srv1.c frozen.c sqlite3.c -lpthread -ldl
+
     TODO: integração com json e sqlite3
 */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>    //strlen
+#include <string.h>     //strlen
 #include <sys/socket.h>
-#include <arpa/inet.h> //inet_addr
-#include <unistd.h>    //write
+#include <arpa/inet.h>  //inet_addr
+#include <unistd.h>     //write
+#include "frozen.h"     //json decoder
+#include "sqlite3.h"
+
+#define MAX_JSON 5120
+#define SQLITE_DB "servire.db" 
 
 void connection_proxy(int); /* função de entrada para cada conexão */
-void char *get_comando(char *json); /* retorna o campo "comando" do json */
+int get_comando(char *json, char *comando); /* retorna o campo "comando" do json */
 
-int main(int argc , char *argv[])
-{
+int cmd_autenticar_usuario(char *json, char *resposta);
+
+
+int main(int argc , char *argv[]) {
     int socket_desc , client_sock , c , pid;
     struct sockaddr_in server , client;
     int port = 8888;
@@ -86,27 +96,38 @@ int main(int argc , char *argv[])
  para cada conexão.  Ela trabalha com toda a 
  comunicação quando uma conexão é estabelecida.
  *************************************************/
-void connection_proxy (int sock)
-{
+void connection_proxy (int sock) {
    int read_size;
-   char buffer[2048];
+   char buffer[MAX_JSON]; /* armazena o json recebido */
+   char resposta[MAX_JSON]; /* armazena a resposta do comando */
    char comando[50];
    memset( &buffer, 0, sizeof(buffer));
+   memset( &resposta, 0, sizeof(resposta));
    memset( &comando, 0, sizeof(comando));
-	//Receive a message from client
+   
+	//Recebe a mensagom do client
 	while( (read_size = read(sock , buffer, sizeof(buffer))) > 0 ) {
 		
-		comando = get_comando(buffer);
-		puts(comando);
+		get_comando(buffer, comando);
+		// puts(comando);
 	  	
-	  	//Envia a mensagem mensagem de volta ao client
+	  	//Envia a mensagem de volta ao client
 	  	write(sock , buffer , strlen(buffer));
 	  	printf("mensagem: %s\n", buffer);
 
-	  	memset( &buffer, 0, sizeof(buffer));
-	  	memset( &comando, 0, sizeof(comando));
 
+		// direciona para a execução dos comandos	  	
+	  	if(strcmp(comando, "autenticar_usuario" ) == 0) {
+	  		puts("autenticar_usuario");
+	  		cmd_autenticar_usuario(buffer, resposta);
+	  	} else if(strcmp(comando, "listar_mesas" ) == 0) {
+	  		puts("listar_mesas");
+	  	} else {
+	  		puts("comando inexistente");
+	  	}
 	 }
+  	 memset( &buffer, 0, sizeof(buffer));
+  	 memset( &comando, 0, sizeof(comando));
 	
 	 if(read_size == 0) {
 	  puts("Client disconectou");
@@ -118,14 +139,67 @@ void connection_proxy (int sock)
 	 }   
 }
 
-/******** *get_comando() *********************
+/******** get_comando() *********************
  Retorna o conteúdo do campo "comando" 
  enviado dentro do objeto json.
  *********************************************/
-
-void char *get_comando(char *json) {
-
-
-	return NULL;
-
+int get_comando(char *json, char *comando) {
+	char *cmd = NULL;
+	printf("comando recebido: %s\n", json);
+	json_scanf(json, strlen(json), "{cmd:%Q}", &cmd);
+	printf("comando encontrado: %s\n", cmd);
+	strcpy(comando, cmd);
+	return 0;
 }
+
+/******** cmd_autenticar_usuario() ***************
+ Executa o comando da API cmd_autenticar_usuario 
+
+ *********************************************/
+int cmd_autenticar_usuario(char *json, char *resposta){
+
+	/* pega os campos usuario e senha do json */	
+	char *usuario;
+	char *senha;
+	json_scanf(json, strlen(json), "{usuario:%Q, senha:%Q}", &usuario, &senha);
+
+	/* busca no banco de dados */
+	sqlite3 *conn;
+	sqlite3_stmt *res;
+	const char* db = SQLITE_DB;
+	int error = 0;
+	int rec_count = 0;
+	const char *errMSG;
+	const char *tail;
+	
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		return 1;
+	}
+	
+	char *sql = "select rowid from usuario where usu_nome = ? and usu_senha = ?";
+	
+	error = sqlite3_prepare_v2(conn, sql, -1, &res, 0);
+	if (error != SQLITE_OK) {
+		printf("falha ao buscar dados!: %s\n", sqlite3_errmsg(conn));
+		return 1;
+	}
+	
+	sqlite3_bind_text(res, 1, usuario, -1, 0); /* nome usuario */
+	sqlite3_bind_text(res, 2, senha, -1, 0); /* senha */
+	
+	/* executa a query */	
+	int step = sqlite3_step(res);
+	if(step == SQLITE_ROW){
+		printf("id_usuario: %d\n", sqlite3_column_int(res,0));	
+	} else if(step == SQLITE_DONE) {
+		puts("usuario ou senha não encontrado!!");
+	}
+	
+	sqlite3_finalize(res);
+	sqlite3_close(conn);
+			
+	return 0;
+}
+

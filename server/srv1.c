@@ -13,7 +13,8 @@
 #include <arpa/inet.h> //inet_addr
 #include <unistd.h>    //write
 
-void connection_proxy(int); /* function prototype */
+void connection_proxy(int); /* função de entrada para cada conexão */
+void char *get_comando(char *json); /* retorna o campo "comando" do json */
 
 int main(int argc , char *argv[])
 {
@@ -58,7 +59,7 @@ int main(int argc , char *argv[])
 	        perror("accept falhou!!");
 	        continue;
 	    }
-	    puts("Conxão foi aceita!!!");
+	    puts("Conexão foi aceita!!!");
 	    
 	    pid = fork();
 	    if(pid < 0) {
@@ -68,7 +69,7 @@ int main(int argc , char *argv[])
 	    
 	    if(pid == 0){
 			close(socket_desc);
-			dostuff(client_sock);
+			connection_proxy(client_sock);
 			exit(0);	    
 	    }
 	    else {
@@ -81,29 +82,50 @@ int main(int argc , char *argv[])
 }
 
 /******** connection_proxy() *********************
- There is a separate instance of this function 
- for each connection.  It handles all communication
- once a connnection has been established.
- *****************************************/
+ Existe uma instancia em separado dessa função 
+ para cada conexão.  Ela trabalha com toda a 
+ comunicação quando uma conexão é estabelecida.
+ *************************************************/
 void connection_proxy (int sock)
 {
    int read_size;
    char buffer[2048];
+   char comando[50];
    memset( &buffer, 0, sizeof(buffer));
+   memset( &comando, 0, sizeof(comando));
 	//Receive a message from client
 	while( (read_size = read(sock , buffer, sizeof(buffer))) > 0 ) {
-	  //Send the message back to client
-	  write(sock , buffer , strlen(buffer));
-	  printf("mensagem: %s\n", buffer);
-	  memset( &buffer, 0, sizeof(buffer));
+		
+		comando = get_comando(buffer);
+		puts(comando);
+	  	
+	  	//Envia a mensagem mensagem de volta ao client
+	  	write(sock , buffer , strlen(buffer));
+	  	printf("mensagem: %s\n", buffer);
+
+	  	memset( &buffer, 0, sizeof(buffer));
+	  	memset( &comando, 0, sizeof(comando));
+
 	 }
 	
 	 if(read_size == 0) {
-	  puts("Client disconnected");
+	  puts("Client disconectou");
 	  fflush(stdout);
 	 }
 	 else if(read_size == -1) {
-	  perror("recv failed");
+	  perror("recv falhou");
 	  exit(1);
 	 }   
+}
+
+/******** *get_comando() *********************
+ Retorna o conteúdo do campo "comando" 
+ enviado dentro do objeto json.
+ *********************************************/
+
+void char *get_comando(char *json) {
+
+
+	return NULL;
+
 }

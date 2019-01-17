@@ -1,5 +1,6 @@
 /*
     C ECHO client example using sockets
+    gcc -o client_teste client_teste.c
 */
 #include<stdio.h> //printf
 #include<stdlib.h>
@@ -39,8 +40,10 @@ int main(int argc , char *argv[])
     
     printf("\n\n\n");
  	 printf("0 - sair\n");
- 	 printf("1 - autenticar usuario\n");
- 	 printf("2 - listar_mesas\n");
+ 	 printf("1 - autenticar usuario existente\n");
+ 	 printf("2 - autenticar usuario não existente\n");
+ 	 printf("3 - autenticar usuario com senha errada\n");
+ 	 printf("4 - listar_mesas\n");
  	 printf("\n\n\n");
     	
     printf("entre com uma opção: ");
@@ -49,14 +52,23 @@ int main(int argc , char *argv[])
 		case 0:
 			close(sock);
 			return 0;			
-		case 1: /* autenticar ususario */
+		case 1: /* autenticar usuario existente*/
 			puts("autenticar_usuario");
   			strcpy(json, "{\"cmd\":\"autenticar_usuario\", \"usuario\":\"lucio\", \"senha\":\"lucio\"}");
 			break;
-		case 2: /* listar_mesas */
+		case 2: /* autenticar usuario inexistente*/
+			puts("autenticar_usuario não existente");
+  			strcpy(json, "{\"cmd\":\"autenticar_usuario\", \"usuario\":\"inexistente\", \"senha\":\"lucio\"}");
+			break;
+		case 3: /* autenticar usuario com senha errada*/
+			puts("autenticar_usuario não existente");
+  			strcpy(json, "{\"cmd\":\"autenticar_usuario\", \"usuario\":\"lucio\", \"senha\":\"errada\"}");
+			break;
+		case 4: /* listar_mesas */
 			puts("listar_mesas");
 			strcpy(json, "{\"id_usuario\":\"1\", \"cmd\":\"listar_mesas\"}");
 			break;
+			
 		otherwise:
 			puts("comando inexistente");
 			close(sock);

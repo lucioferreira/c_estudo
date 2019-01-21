@@ -25,6 +25,7 @@ void connection_proxy(int); /* função de entrada para cada conexão */
 int get_comando(char *json, char *comando); /* retorna o campo "comando" do json */
 
 int cmd_autenticar_usuario(char *json, char *resposta);
+int cmd_listar_mesa(char *json, char *resposta);
 
 
 int main(int argc , char *argv[]) {
@@ -113,13 +114,15 @@ void connection_proxy (int sock) {
 
 		// direciona para a execução dos comandos
 	  	if(strcmp(comando, "autenticar_usuario" ) == 0) {
-	  		puts("autenticar_usuario");
+	  		puts("==>autenticar_usuario");
 	  		cmd_autenticar_usuario(buffer, resposta);
-	  		printf("resp: %s\n", resposta);
-	  	} else if(strcmp(comando, "listar_mesas" ) == 0) {
-	  		puts("listar_mesas");
+	  		printf("<== %s\n", resposta);
+	  	} else if(strcmp(comando, "listar_mesa" ) == 0) {
+	  		puts("==> listar_mesa");
+	  		cmd_listar_mesa(buffer, resposta);
+	  		printf("<==: %s\n", resposta);
 	  	} else {
-	  		puts("comando inexistente");
+	  		puts(" ==> comando inexistente <==");
 	  	}
 
          //Envia a mensagem de volta ao client
@@ -173,6 +176,77 @@ int cmd_autenticar_usuario(char *json, char *resposta){
 	char *usuario;
 	char *senha;
 	json_scanf(json, strlen(json), "{usuario:%Q, senha:%Q}", &usuario, &senha);
+
+	/* busca no banco de dados */
+	sqlite3 *conn;
+	sqlite3_stmt *res;
+	const char* db = SQLITE_DB;
+	int error = 0;
+	int rec_count = 0;
+	const char *errMSG;
+	const char *tail;
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		return 1;
+	}
+
+	char *sql = "select rowid from usuario where usu_nome = ? and usu_senha = ?";
+
+	error = sqlite3_prepare_v2(conn, sql, -1, &res, 0);
+	if (error != SQLITE_OK) {
+		printf("falha ao buscar dados!: %s\n", sqlite3_errmsg(conn));
+		return 1;
+	}
+
+	sqlite3_bind_text(res, 1, usuario, -1, 0); /* nome usuario */
+	sqlite3_bind_text(res, 2, senha, -1, 0); /* senha */
+
+	/* executa a query */
+	int step = sqlite3_step(res);
+	if(step == SQLITE_ROW){
+		int id = sqlite3_column_int(res,0);
+		printf("id_usuario: %d\n", id);
+		{
+			char buf[2048];
+			memset( &buf, 0, sizeof(buf));
+			struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+			json_printf(&out, "{status: %Q , resposta: {id_usuario: %d}}", "ok autenticar_usuario", id);
+			// puts(buf);
+			strcpy(resposta, buf);
+			// puts(resposta);
+		}
+	} else if(step == SQLITE_DONE) {
+		// puts("usuario ou senha não encontrado!!");
+		{
+			char buf[2048];
+			memset( &buf, 0, sizeof(buf));
+			struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+			json_printf(&out, "{status: %Q , resposta:%Q}", "erro autenticar_usuario", "usuário inexistente ou senha errada");
+			// puts(buf);
+			strcpy(resposta, buf);
+			// puts(resposta);
+		}
+	}
+
+	sqlite3_finalize(res);
+	sqlite3_close(conn);
+
+	return 0;
+}
+
+/******** cmd_listar_mesa() ***************
+ Executa o comando da API cmd_listar_mesa
+ 1. verifica se o usuario existe. em caso negativo, retorna erro
+ 2. retorna a lista de mesas
+
+ *********************************************/
+int cmd_listar_mesa(char *json, char *resposta){
+
+	/* pega o campo id do usuario */
+	int *usuario;
+	json_scanf(json, strlen(json), "{usuario:%Q}", &usuario);
 
 	/* busca no banco de dados */
 	sqlite3 *conn;

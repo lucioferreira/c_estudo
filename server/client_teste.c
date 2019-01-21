@@ -65,8 +65,8 @@ int main(int argc , char *argv[])
   			strcpy(json, "{\"cmd\":\"autenticar_usuario\", \"usuario\":\"lucio\", \"senha\":\"errada\"}");
 			break;
 		case 4: /* listar_mesas */
-			puts("listar_mesas");
-			strcpy(json, "{\"id_usuario\":\"1\", \"cmd\":\"listar_mesas\"}");
+			puts("listar_mesa");
+			strcpy(json, "{\"id_usuario\":\"1\", \"cmd\":\"listar_mesa\"}");
 			break;
 			
 		otherwise:

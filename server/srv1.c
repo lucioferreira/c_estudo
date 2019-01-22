@@ -240,6 +240,9 @@ int cmd_autenticar_usuario(char *json, char *resposta){
 
  *********************************************/
 int cmd_listar_mesa(char *json, char *resposta){
+	
+	char lista_buff[800];
+	memset(&lista_buff, 0, sizeof(lista_buff));
 
 	/* pega o campo id do usuario */
 	int id_usuario;
@@ -268,7 +271,7 @@ int cmd_listar_mesa(char *json, char *resposta){
 		return -1;
 	}
 
-	char *sql = "select titulo, status from mesa order by titulo";
+	char *sql = "select rowid, titulo, status from mesa order by titulo";
 
 	error = sqlite3_prepare_v2(conn, sql, -1, &res, 0);
 	if (error != SQLITE_OK) {
@@ -278,45 +281,43 @@ int cmd_listar_mesa(char *json, char *resposta){
 	}
 
 	/* executa a query */
-	int step = sqlite3_step(res);
+	/* int step = sqlite3_step(res); */ 
+	char lin_buff[150];
+	memset(&lin_buff, 0, sizeof(lin_buff));
 
-	/* temporário */	
-	char buf[2048];
-	memset( &buf, 0, sizeof(buf));
-	struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
-	json_printf(&out, "{status: %Q , resposta: {id_usuario: %d}}", "ok listar_mesa", 0);
-	strcpy(resposta, buf);
+	/* nenhum registro encontrado */	
+	if(sqlite3_step(res) == SQLITE_DONE) {
+		/* formata o json de retorno */
+		char buf[800];
+		memset( &buf, 0, sizeof(buf));
+		sprintf(buf, "{\"status\":\"ok listar_mesa\",\"resposta\":[]}");	
+	
+		strcpy(resposta, buf);
+	
+		sqlite3_finalize(res);
+		sqlite3_close(conn);
 
-	
-	/*	
-	
-	if(step == SQLITE_ROW){
-		int id = sqlite3_column_int(res,0);
-		printf("id_usuario: %d\n", id);
-		{
-			char buf[2048];
-			memset( &buf, 0, sizeof(buf));
-			struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
-			json_printf(&out, "{status: %Q , resposta: {id_usuario: %d}}", "ok autenticar_usuario", id);
-			// puts(buf);
-			strcpy(resposta, buf);
-			// puts(resposta);
-		}
-	} else if(step == SQLITE_DONE) {
-		// puts("usuario ou senha não encontrado!!");
-		{
-			char buf[2048];
-			memset( &buf, 0, sizeof(buf));
-			struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
-			json_printf(&out, "{status: %Q , resposta:%Q}", "erro autenticar_usuario", "usuário inexistente ou senha errada");
-			// puts(buf);
-			strcpy(resposta, buf);
-			// puts(resposta);
-		}
+		return 0;
 	}
 	
-	*/
-
+	strcat(lista_buff, "[");
+	while (sqlite3_step(res) == SQLITE_ROW) {
+		sprintf(lin_buff, "{\"id_mesa\":%d, \"titulo_mesa\":\"%s\", \"status\":%d},", 
+			sqlite3_column_int(res, 0), sqlite3_column_text(res, 1), sqlite3_column_int(res, 2));
+		printf("rec: %s\n", lin_buff);
+		strcat(lista_buff, lin_buff);
+		memset(&lin_buff, 0, sizeof(lin_buff));
+	}
+	lista_buff[strlen(lista_buff) - 1] = ']';
+	printf("lista: %s\n", lista_buff);
+	
+	/* formata o json de retorno */
+	char buf[800];
+	memset( &buf, 0, sizeof(buf));
+	sprintf(buf, "{\"status\":\"ok listar_mesa\",\"resposta\":%s}", lista_buff);	
+	
+	strcpy(resposta, buf);
+	
 	sqlite3_finalize(res);
 	sqlite3_close(conn);
 
@@ -359,13 +360,8 @@ int get_id_usuario(int id) {
 	int step = sqlite3_step(res);
 	if(step == SQLITE_ROW){
 		ret_id = sqlite3_column_int(res,0);
-		printf("-- SQLITE_ROW\n");
-		printf("-- id_usuario: %d\n", id);
-		printf("-- ret id_usuario: %d\n", ret_id);
 	} else if(step == SQLITE_DONE) {
-		printf("-- SQLITE_DONE\n");
 		ret_id = -1;
-		printf("-- ret id_usuario: %d\n", ret_id);
 	}
 
 	sqlite3_finalize(res);

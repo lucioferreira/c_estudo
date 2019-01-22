@@ -11,11 +11,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>     //strlen
+#include <string.h>     /* strlen */
 #include <sys/socket.h>
-#include <arpa/inet.h>  //inet_addr
-#include <unistd.h>     //write
-#include "frozen.h"     //json decoder
+#include <arpa/inet.h>  /* inet_addr */
+#include <unistd.h>     /* write */
+#include "frozen.h"     /* json decoder */
 #include "sqlite3.h"
 
 #define MAX_JSON 5120
@@ -24,47 +24,50 @@
 void connection_proxy(int); /* função de entrada para cada conexão */
 int get_comando(char *json, char *comando); /* retorna o campo "comando" do json */
 
+/* funções API */
 int cmd_autenticar_usuario(char *json, char *resposta);
 int cmd_listar_mesa(char *json, char *resposta);
 
+/* funções helper */
+int get_id_usuario(int id);
 
-int main(int argc , char *argv[]) {
+
+int main() {
     int socket_desc , client_sock , c , pid;
     struct sockaddr_in server , client;
     int port = 8888;
 
-    //cria o socket
+    /* cria o socket */
     socket_desc = socket(AF_INET , SOCK_STREAM , 0);
     if (socket_desc == -1) {
         printf("Erro ao criar o socket\n");
     }
     puts("Socket criado com sucesso");
 
-    //prepara o sockaddr_na structure
+    /* prepara o sockaddr_na structure */
     server.sin_family = AF_INET;
     server.sin_addr.s_addr = INADDR_ANY;
     server.sin_port = htons( port );
 
-    // Bind
+    /* Bind */ 
     if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
     {
-        //print the error message
         perror("bind falhou. Erro");
         return 1;
     }
     printf("bind ok na porta %d\n", port);
 
-    // Listen
+    /* Listen */ 
     listen(socket_desc , 3);
 
-    //Aceita as conexões que estão entrando
+    /* Aceita as conexões que estão entrando  */
     puts("Esperando por novas conexões...");
     c = sizeof(struct sockaddr_in);
 
-    //loop para receber todos as conexões que entram
+    /* loop para receber todos as conexões que entram */
     while(1) {
 
-	    //aceita a conexão de um client
+	    /* aceita a conexão de um client */
 	    client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
 	    if (client_sock < 0) {
 	        perror("accept falhou!!");
@@ -106,13 +109,12 @@ void connection_proxy (int sock) {
    memset( &resposta, 0, sizeof(resposta));
    memset( &comando, 0, sizeof(comando));
 
-	//Recebe a mensagem do client
+	/* Recebe a mensagem do client */
 	while( (read_size = read(sock , buffer, sizeof(buffer))) > 0 ) {
 
 		get_comando(buffer, comando);
-		// puts(comando);
 
-		// direciona para a execução dos comandos
+		/* direciona para a execução dos comandos */ 
 	  	if(strcmp(comando, "autenticar_usuario" ) == 0) {
 	  		puts("==>autenticar_usuario");
 	  		cmd_autenticar_usuario(buffer, resposta);
@@ -125,13 +127,15 @@ void connection_proxy (int sock) {
 	  		puts(" ==> comando inexistente <==");
 	  	}
 
-         //Envia a mensagem de volta ao client
-         // write(sock , buffer , strlen(buffer));
-         // printf("mensagem: %s\n", buffer);
+         /* Envia a mensagem de volta ao client */
+			/*         
+         write(sock , buffer , strlen(buffer));
+         printf("mensagem: %s\n", buffer);
+         */
 
-         //Envia a mensagem de volta ao client
+         /* Envia a mensagem de volta ao client */
          printf("resp2: %s\n", resposta);
-         if(ret = write(sock , resposta , strlen(resposta)) == -1) {
+         if((ret = write(sock , resposta , strlen(resposta))) == -1) {
             printf("erro no envio para cliente\n");
          } else {
             printf("%d bytes enviados ao cliente\n", ret);
@@ -159,9 +163,9 @@ void connection_proxy (int sock) {
  *********************************************/
 int get_comando(char *json, char *comando) {
 	char *cmd = NULL;
-	// printf("comando recebido: %s\n", json);
+	/* printf("comando recebido: %s\n", json); */ 
 	json_scanf(json, strlen(json), "{cmd:%Q}", &cmd);
-	// printf("comando encontrado: %s\n", cmd);
+	/* printf("comando encontrado: %s\n", cmd); */ 
 	strcpy(comando, cmd);
 	return 0;
 }
@@ -182,9 +186,6 @@ int cmd_autenticar_usuario(char *json, char *resposta){
 	sqlite3_stmt *res;
 	const char* db = SQLITE_DB;
 	int error = 0;
-	int rec_count = 0;
-	const char *errMSG;
-	const char *tail;
 
 	error = sqlite3_open(db, &conn);
 	if (error) {
@@ -213,20 +214,16 @@ int cmd_autenticar_usuario(char *json, char *resposta){
 			memset( &buf, 0, sizeof(buf));
 			struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
 			json_printf(&out, "{status: %Q , resposta: {id_usuario: %d}}", "ok autenticar_usuario", id);
-			// puts(buf);
 			strcpy(resposta, buf);
-			// puts(resposta);
 		}
 	} else if(step == SQLITE_DONE) {
-		// puts("usuario ou senha não encontrado!!");
+		/* puts("usuario ou senha não encontrado!!"); */ 
 		{
 			char buf[2048];
 			memset( &buf, 0, sizeof(buf));
 			struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
 			json_printf(&out, "{status: %Q , resposta:%Q}", "erro autenticar_usuario", "usuário inexistente ou senha errada");
-			// puts(buf);
 			strcpy(resposta, buf);
-			// puts(resposta);
 		}
 	}
 
@@ -245,37 +242,54 @@ int cmd_autenticar_usuario(char *json, char *resposta){
 int cmd_listar_mesa(char *json, char *resposta){
 
 	/* pega o campo id do usuario */
-	int *usuario;
-	json_scanf(json, strlen(json), "{usuario:%Q}", &usuario);
+	int id_usuario;
+	json_scanf(json, strlen(json), "{id_usuario:%d}", &id_usuario);
+	
+	/* usuario existe? */
+	if(get_id_usuario(id_usuario) == -1) {
+		char buf[2048];
+		memset( &buf, 0, sizeof(buf));
+		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro listar_mesa", "id usuario inexistente");
+		strcpy(resposta, buf);
+		return -1; 
+	}
 
 	/* busca no banco de dados */
 	sqlite3 *conn;
 	sqlite3_stmt *res;
 	const char* db = SQLITE_DB;
 	int error = 0;
-	int rec_count = 0;
-	const char *errMSG;
-	const char *tail;
 
 	error = sqlite3_open(db, &conn);
 	if (error) {
 		puts("Falha ao abrir o banco de dados");
-		return 1;
+		sqlite3_close(conn);
+		return -1;
 	}
 
-	char *sql = "select rowid from usuario where usu_nome = ? and usu_senha = ?";
+	char *sql = "select titulo, status from mesa order by titulo";
 
 	error = sqlite3_prepare_v2(conn, sql, -1, &res, 0);
 	if (error != SQLITE_OK) {
 		printf("falha ao buscar dados!: %s\n", sqlite3_errmsg(conn));
-		return 1;
+		sqlite3_close(conn);
+		return -1;
 	}
-
-	sqlite3_bind_text(res, 1, usuario, -1, 0); /* nome usuario */
-	sqlite3_bind_text(res, 2, senha, -1, 0); /* senha */
 
 	/* executa a query */
 	int step = sqlite3_step(res);
+
+	/* temporário */	
+	char buf[2048];
+	memset( &buf, 0, sizeof(buf));
+	struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+	json_printf(&out, "{status: %Q , resposta: {id_usuario: %d}}", "ok listar_mesa", 0);
+	strcpy(resposta, buf);
+
+	
+	/*	
+	
 	if(step == SQLITE_ROW){
 		int id = sqlite3_column_int(res,0);
 		printf("id_usuario: %d\n", id);
@@ -300,6 +314,8 @@ int cmd_listar_mesa(char *json, char *resposta){
 			// puts(resposta);
 		}
 	}
+	
+	*/
 
 	sqlite3_finalize(res);
 	sqlite3_close(conn);
@@ -307,3 +323,53 @@ int cmd_listar_mesa(char *json, char *resposta){
 	return 0;
 }
 
+/******** get_id_usuario() ***************
+ Retorna id do usuário
+ em caso de usuário desconhecido, retorna -1
+ *********************************************/
+int get_id_usuario(int id) {
+	/* busca no banco de dados */
+	sqlite3 *conn;
+	sqlite3_stmt *res;
+	const char* db = SQLITE_DB;
+	int error = 0;
+	int ret_id = 0;
+	
+	printf("==> get_id_usuario id : %d\n", id);
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	char *sql = "select rowid from usuario where rowid = ?";
+
+	error = sqlite3_prepare_v2(conn, sql, -1, &res, 0);
+	if (error != SQLITE_OK) {
+		printf("falha ao buscar dados!: %s\n", sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	sqlite3_bind_int(res, 1, id); /* id usuario */
+
+	/* executa a query */
+	int step = sqlite3_step(res);
+	if(step == SQLITE_ROW){
+		ret_id = sqlite3_column_int(res,0);
+		printf("-- SQLITE_ROW\n");
+		printf("-- id_usuario: %d\n", id);
+		printf("-- ret id_usuario: %d\n", ret_id);
+	} else if(step == SQLITE_DONE) {
+		printf("-- SQLITE_DONE\n");
+		ret_id = -1;
+		printf("-- ret id_usuario: %d\n", ret_id);
+	}
+
+	sqlite3_finalize(res);
+	sqlite3_close(conn);
+	
+	return ret_id;
+}

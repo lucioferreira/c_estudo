@@ -240,7 +240,7 @@ int cmd_autenticar_usuario(char *json, char *resposta){
 
  *********************************************/
 int cmd_listar_mesa(char *json, char *resposta){
-	
+
 	char lista_buff[800];
 	memset(&lista_buff, 0, sizeof(lista_buff));
 
@@ -284,9 +284,10 @@ int cmd_listar_mesa(char *json, char *resposta){
 	/* int step = sqlite3_step(res); */ 
 	char lin_buff[150];
 	memset(&lin_buff, 0, sizeof(lin_buff));
-
-	/* nenhum registro encontrado */	
-	if(sqlite3_step(res) == SQLITE_DONE) {
+	
+	int step = sqlite3_step(res);
+	
+	if(step == SQLITE_DONE) { /* nenhum registro encontrado */
 		/* formata o json de retorno */
 		char buf[800];
 		memset( &buf, 0, sizeof(buf));
@@ -298,19 +299,26 @@ int cmd_listar_mesa(char *json, char *resposta){
 		sqlite3_close(conn);
 
 		return 0;
-	}
 	
-	strcat(lista_buff, "[");
-	while (sqlite3_step(res) == SQLITE_ROW) {
+	} else if(step == SQLITE_ROW) {
+		/* pega o primeiro registro */
+		strcat(lista_buff, "[");
 		sprintf(lin_buff, "{\"id_mesa\":%d, \"titulo_mesa\":\"%s\", \"status\":%d},", 
 			sqlite3_column_int(res, 0), sqlite3_column_text(res, 1), sqlite3_column_int(res, 2));
-		printf("rec: %s\n", lin_buff);
 		strcat(lista_buff, lin_buff);
 		memset(&lin_buff, 0, sizeof(lin_buff));
+		
+		/* pega o demais registros */
+		while (sqlite3_step(res) == SQLITE_ROW) {
+			sprintf(lin_buff, "{\"id_mesa\":%d, \"titulo_mesa\":\"%s\", \"status\":%d},", 
+				sqlite3_column_int(res, 0), sqlite3_column_text(res, 1), sqlite3_column_int(res, 2));
+			strcat(lista_buff, lin_buff);
+			memset(&lin_buff, 0, sizeof(lin_buff));
+		}
+		
+		lista_buff[strlen(lista_buff) - 1] = ']';
 	}
-	lista_buff[strlen(lista_buff) - 1] = ']';
-	printf("lista: %s\n", lista_buff);
-	
+
 	/* formata o json de retorno */
 	char buf[800];
 	memset( &buf, 0, sizeof(buf));

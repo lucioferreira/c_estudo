@@ -29,6 +29,7 @@ int get_comando(char *json, char *comando); /* retorna o campo "comando" do json
 int cmd_autenticar_usuario(char *json, char *resposta);
 int cmd_listar_mesa(char *json, char *resposta);
 int cmd_listar_categoria(char *json, char *resposta);
+int cmd_listar_cardapio(char *json, char *resposta);
 
 /* funções helper */
 int get_id_usuario(int id);
@@ -129,7 +130,10 @@ void connection_proxy (int sock) {
 	  		puts("==> listar_categoria");
 	  		cmd_listar_categoria(buffer, resposta);
 	  		printf("<==: %s\n", resposta);
-
+	  	} else if(strcmp(comando, "listar_cardapio" ) == 0) {
+	  		puts("==> listar_cardapio");
+	  		cmd_listar_cardapio(buffer, resposta);
+	  		printf("<==: %s\n", resposta);
 	  	} else {
 	  		puts(" ==> comando inexistente <==");
 	  	}
@@ -436,6 +440,122 @@ int cmd_listar_categoria(char *json, char *resposta){
 	return 0;
 }
 
+/******** cmd_listar_cardapio() ***************
+ Executa o comando da API cmd_listar_cardapio
+ 1. verifica se o usuario existe. em caso negativo, retorna erro
+ 2. retorna a lista de itens do cardapio
+ 
+ TODO: 
+  - analisar o tamanho da resposta
+  - campos retornando null devem retornar em branco
+
+ *********************************************/
+int cmd_listar_cardapio(char *json, char *resposta){
+
+	char lista_buff[2048];
+	memset(&lista_buff, 0, sizeof(lista_buff));
+
+	/* pega o campo id do usuario */
+	int id_usuario;
+	json_scanf(json, strlen(json), "{id_usuario:%d}", &id_usuario);
+	
+	/* usuario existe? */
+	if(get_id_usuario(id_usuario) == -1) {
+		char buf[2048];
+		memset( &buf, 0, sizeof(buf));
+		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro listar_cardapio", "id usuario inexistente");
+		strcpy(resposta, buf);
+		return -1; 
+	}
+
+	/* busca no banco de dados */
+	sqlite3 *conn;
+	sqlite3_stmt *res;
+	const char* db = SQLITE_DB;
+	int error = 0;
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	char *sql = "select rowid, cat_cid, titulo, descr_breve, "
+						"valor, ext_img "
+						"from cardapio order by cat_cid";
+
+	error = sqlite3_prepare_v2(conn, sql, -1, &res, 0);
+	if (error != SQLITE_OK) {
+		printf("falha ao buscar dados!: %s\n", sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	/* executa a query */
+	char lin_buff[450];
+	memset(&lin_buff, 0, sizeof(lin_buff));
+	
+	int step = sqlite3_step(res);
+	
+	if(step == SQLITE_DONE) { /* nenhum registro encontrado */
+		/* formata o json de retorno */
+		char buf[800];
+		memset( &buf, 0, sizeof(buf));
+		sprintf(buf, "{\"status\":\"ok listar_cardapio\",\"resposta\":[]}");	
+	
+		strcpy(resposta, buf);
+	
+		sqlite3_finalize(res);
+		sqlite3_close(conn);
+
+		return 0;
+	
+	} else if(step == SQLITE_ROW) {
+		/* pega o primeiro registro */
+		strcat(lista_buff, "[");
+		sprintf(lin_buff, 
+		   "{\"id\":%d, \"cat_id\":%d, \"titulo\":\"%s\", \"descr_breve\":\"%s\", \"valor\":%d, \"ext-img\":\"%s\"},", 
+			sqlite3_column_int(res, 0), 
+			sqlite3_column_int(res, 1),
+			sqlite3_column_text(res, 2),
+			sqlite3_column_text(res, 3),
+			sqlite3_column_int(res, 4),
+			sqlite3_column_text(res, 5));
+		strcat(lista_buff, lin_buff);
+		memset(&lin_buff, 0, sizeof(lin_buff));
+		
+		/* pega o demais registros */
+		while (sqlite3_step(res) == SQLITE_ROW) {
+		sprintf(lin_buff, 
+		   "{\"id\":%d, \"cat_id\":%d, \"titulo\":\"%s\", \"descr_breve\":\"%s\", \"valor\":%d, \"ext-img\":\"%s\"},", 
+			sqlite3_column_int(res, 0), 
+			sqlite3_column_int(res, 1),
+			sqlite3_column_text(res, 2),
+			sqlite3_column_text(res, 3),
+			sqlite3_column_int(res, 4),
+			sqlite3_column_text(res, 5));
+		strcat(lista_buff, lin_buff);
+			strcat(lista_buff, lin_buff);
+			memset(&lin_buff, 0, sizeof(lin_buff));
+		}
+		
+		lista_buff[strlen(lista_buff) - 1] = ']';
+	}
+
+	/* formata o json de retorno */
+	char buf[800];
+	memset( &buf, 0, sizeof(buf));
+	sprintf(buf, "{\"status\":\"ok listar_cardapio\",\"resposta\":%s}", lista_buff);	
+	
+	strcpy(resposta, buf);
+	
+	sqlite3_finalize(res);
+	sqlite3_close(conn);
+
+	return 0;
+}
 
 
 /******** get_id_usuario() ***************

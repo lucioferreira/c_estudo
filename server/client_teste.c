@@ -46,6 +46,7 @@ int main()
  	 printf("4 - listar_mesa com usuario existente\n");
  	 printf("5 - listar_mesa com usuario não existente\n");
  	 printf("6 - listar_categoria com usuario existente\n");
+ 	 printf("7 - listar_cardapio com usuario existente\n");
  	 printf("\n\n\n");
     	
     printf("entre com uma opção: ");
@@ -78,6 +79,11 @@ int main()
 			puts("listar_categoria usuario existente");
 			strcpy(json, "{\"id_usuario\":\"1\", \"cmd\":\"listar_categoria\"}");
 			break;
+		case 7: /* listar_cardapio */
+			puts("listar_cardapio usuario existente");
+			strcpy(json, "{\"id_usuario\":\"1\", \"cmd\":\"listar_cardapio\"}");
+			break;
+			
 		default:
 			puts("comando inexistente");
 			close(sock);

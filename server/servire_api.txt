@@ -22,7 +22,7 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 * retorna a lista de mesas cadastrados no sistema
 * parametros
 * ================ 
-* entrada: id_usuario (idu), comando (cmd) 
+* entrada: id_usuario, comando (cmd) 
 * resposta: status da requisicao( status + cmd ) 
             array <id da mesa (id_mesa), titulo da mesa(titulo_mesa), status(status)>
 * obs:
@@ -37,7 +37,7 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 * listar_cardapio
 *  retorna a lista dos itens do cardapio cadastrado no sistema
 * parametros:
-* entrada: id_usuario (idu), comando (cmd)
+* entrada: id_usuario, comando (cmd)
 * resposta: status da requisicao( status + cmd ) 
 *            array <id do cardapio (id), categoria(cat), titulo (titulo), 
 *			       descrição breve (descr_breve), valor (valor)>

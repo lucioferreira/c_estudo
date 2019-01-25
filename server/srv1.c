@@ -30,9 +30,12 @@ int cmd_autenticar_usuario(char *json, char *resposta);
 int cmd_listar_mesa(char *json, char *resposta);
 int cmd_listar_categoria(char *json, char *resposta);
 int cmd_listar_cardapio(char *json, char *resposta);
+int cmd_novo_atendimento(char *json, char *resposta);
+
 
 /* funções helper */
 int get_id_usuario(int id);
+int get_mesa_status(int id);
 
 
 int main() {
@@ -134,6 +137,11 @@ void connection_proxy (int sock) {
 	  		puts("==> listar_cardapio");
 	  		cmd_listar_cardapio(buffer, resposta);
 	  		printf("<==: %s\n", resposta);
+	  	} else if(strcmp(comando, "novo_atendimento" ) == 0) {
+	  		puts("==> novo_atendimento");
+	  		cmd_novo_atendimento(buffer, resposta);
+	  		printf("<==: %s\n", resposta);
+	  		
 	  	} else {
 	  		puts(" ==> comando inexistente <==");
 	  	}
@@ -434,8 +442,8 @@ int cmd_listar_categoria(char *json, char *resposta){
 	
 	strcpy(resposta, buf);
 	
-	sqlite3_finalize(res);
 	sqlite3_close(conn);
+	sqlite3_finalize(res);
 
 	return 0;
 }
@@ -557,6 +565,155 @@ int cmd_listar_cardapio(char *json, char *resposta){
 	return 0;
 }
 
+/******** cmd_novo_atendimento() ***************
+ Executa o comando da API cmd_novo_atendimento
+ 1. verifica se o usuario existe. em caso negativo, retorna erro
+ 2. verifica se a mesa está válida (se existe, está ocupada). em caso negativo, retorna erro
+    não pode abrir mesa já em atendimento
+ 3. cria uma entrada na tabela de pedidos
+ 4. cria uma entrada na tabela de pagamentos
+ 
+ 
+ TODO: 
+  - analisar o tamanho da resposta
+  - campos retornando null devem retornar em branco
+
+ *********************************************/
+int cmd_novo_atendimento(char *json, char *resposta){
+
+	char lista_buff[2048];
+	memset(&lista_buff, 0, sizeof(lista_buff));
+
+	/* pega o campo id do usuario */
+	int id_usuario, id_mesa;
+	json_scanf(json, strlen(json), "{id_usuario:%d, id_mesa:%d}", &id_usuario, &id_mesa);
+	
+	/* usuario existe? */
+	if(get_id_usuario(id_usuario) == -1) {
+		char buf[2048];
+		memset( &buf, 0, sizeof(buf));
+		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro novo_atendimento", "id usuario inexistente");
+		strcpy(resposta, buf);
+		return -1; 
+	}
+	
+	/* retorna status da mesa */
+	int mesa_status = get_mesa_status(id_mesa);
+	{
+		char buf[2048];
+		memset( &buf, 0, sizeof(buf));
+		switch(mesa_status) {
+			case 2: /* em atendimento  */ 
+				struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+				json_printf(&out, "{status: %Q , resposta:%Q}", "erro novo_atendimento", "mesa em atendimento");
+				strcpy(resposta, buf);
+				break;
+			case 3: /* reservada  */ 
+				struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+				json_printf(&out, "{status: %Q , resposta:%Q}", "erro novo_atendimento", "mesa reservada");
+				strcpy(resposta, buf);
+				break;
+			case 4: /* conjugada */ 
+				struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+				json_printf(&out, "{status: %Q , resposta:%Q}", "erro novo_atendimento", "mesa conjugada");
+				strcpy(resposta, buf);
+				break;
+		}
+		return -1; 
+	
+	}
+	
+
+	/* busca no banco de dados */
+	sqlite3 *conn;
+	sqlite3_stmt *res;
+	const char* db = SQLITE_DB;
+	int error = 0;
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	char *sql = "select rowid, cat_cid, titulo, descr_breve, "
+						"valor, ext_img "
+						"from cardapio order by cat_cid";
+
+	error = sqlite3_prepare_v2(conn, sql, -1, &res, 0);
+	if (error != SQLITE_OK) {
+		printf("falha ao buscar dados!: %s\n", sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	/* executa a query */
+	char lin_buff[450];
+	memset(&lin_buff, 0, sizeof(lin_buff));
+	
+	int step = sqlite3_step(res);
+	
+	if(step == SQLITE_DONE) { /* nenhum registro encontrado */
+		/* formata o json de retorno */
+		char buf[800];
+		memset( &buf, 0, sizeof(buf));
+		sprintf(buf, "{\"status\":\"ok listar_cardapio\",\"resposta\":[]}");	
+	
+		strcpy(resposta, buf);
+	
+		sqlite3_finalize(res);
+		sqlite3_close(conn);
+
+		return 0;
+	
+	} else if(step == SQLITE_ROW) {
+		/* pega o primeiro registro */
+		strcat(lista_buff, "[");
+		sprintf(lin_buff, 
+		   "{\"id\":%d, \"cat_id\":%d, \"titulo\":\"%s\", \"descr_breve\":\"%s\", \"valor\":%d, \"ext-img\":\"%s\"},", 
+			sqlite3_column_int(res, 0), 
+			sqlite3_column_int(res, 1),
+			sqlite3_column_text(res, 2),
+			sqlite3_column_text(res, 3),
+			sqlite3_column_int(res, 4),
+			sqlite3_column_text(res, 5));
+		strcat(lista_buff, lin_buff);
+		memset(&lin_buff, 0, sizeof(lin_buff));
+		
+		/* pega o demais registros */
+		while (sqlite3_step(res) == SQLITE_ROW) {
+		sprintf(lin_buff, 
+		   "{\"id\":%d, \"cat_id\":%d, \"titulo\":\"%s\", \"descr_breve\":\"%s\", \"valor\":%d, \"ext-img\":\"%s\"},", 
+			sqlite3_column_int(res, 0), 
+			sqlite3_column_int(res, 1),
+			sqlite3_column_text(res, 2),
+			sqlite3_column_text(res, 3),
+			sqlite3_column_int(res, 4),
+			sqlite3_column_text(res, 5));
+		strcat(lista_buff, lin_buff);
+			strcat(lista_buff, lin_buff);
+			memset(&lin_buff, 0, sizeof(lin_buff));
+		}
+		
+		lista_buff[strlen(lista_buff) - 1] = ']';
+	}
+
+	/* formata o json de retorno */
+	char buf[800];
+	memset( &buf, 0, sizeof(buf));
+	sprintf(buf, "{\"status\":\"ok listar_cardapio\",\"resposta\":%s}", lista_buff);	
+	
+	strcpy(resposta, buf);
+	
+	sqlite3_finalize(res);
+	sqlite3_close(conn);
+
+	return 0;
+}
+
+
 
 /******** get_id_usuario() ***************
  Retorna id do usuário
@@ -603,3 +760,50 @@ int get_id_usuario(int id) {
 	
 	return ret_id;
 }
+
+/******** get_mesa_status() ***************
+ Retorna status da mesa
+ em caso de inexistência, retorna -1
+ *********************************************/
+int get_mesa_status(int id) {
+	/* busca no banco de dados */
+	sqlite3 *conn;
+	sqlite3_stmt *res;
+	const char* db = SQLITE_DB;
+	int error = 0;
+	int ret = 0;
+	
+	/* printf("==> get_mesa_status id : %d\n", id); */
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	char *sql = "select status from mesa where rowid = ?";
+
+	error = sqlite3_prepare_v2(conn, sql, -1, &res, 0);
+	if (error != SQLITE_OK) {
+		printf("falha ao buscar dados!: %s\n", sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	sqlite3_bind_int(res, 1, id); /* status da mesa */
+
+	/* executa a query */
+	int step = sqlite3_step(res);
+	if(step == SQLITE_ROW){
+		ret = sqlite3_column_int(res,0);
+	} else if(step == SQLITE_DONE) {
+		ret = -1;
+	}
+
+	sqlite3_finalize(res);
+	sqlite3_close(conn);
+	
+	return ret;
+}
+

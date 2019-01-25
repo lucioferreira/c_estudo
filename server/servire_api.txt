@@ -52,7 +52,7 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 *   nao podem ser abertos atendimentos para uma mesa já aberta;
 *   o status da mesa deve mudar para indicar q está em atendimento
 * parametros: 
-* entrada: id_usuario (idu), comando (cmd)
+* entrada: id_usuario, id_mesa, comando (cmd)
 * resposta: status da requisicao( status + cmd ) 
 *           id do atendimento 
 * obs:
@@ -106,6 +106,13 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 * obs:
 *  uma mesa está ligada ao atendimento.
 *  o status da mesa é atualizada na tabela mesa
+	
+	TODO: definir status da mesa
+	1 - Livre
+	2 - Em atendimento
+	3 - Reservada
+	4 - Conjugada (ligada a outra mesa) 
+
 * status: 
 *    webserver: ok
 *    app: em desenvolvimento

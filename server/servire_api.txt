@@ -78,7 +78,7 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 */
 
 /*
-* lista_categoria
+* listar_categoria
 *  retorna a lista de categorias dos itens do cardapio
 * parametros: 
 * retorno: lista <id, categoria>

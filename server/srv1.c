@@ -24,9 +24,11 @@
 void connection_proxy(int); /* função de entrada para cada conexão */
 int get_comando(char *json, char *comando); /* retorna o campo "comando" do json */
 
+
 /* funções API */
 int cmd_autenticar_usuario(char *json, char *resposta);
 int cmd_listar_mesa(char *json, char *resposta);
+int cmd_listar_categoria(char *json, char *resposta);
 
 /* funções helper */
 int get_id_usuario(int id);
@@ -123,6 +125,11 @@ void connection_proxy (int sock) {
 	  		puts("==> listar_mesa");
 	  		cmd_listar_mesa(buffer, resposta);
 	  		printf("<==: %s\n", resposta);
+	  	} else if(strcmp(comando, "listar_categoria" ) == 0) {
+	  		puts("==> listar_categoria");
+	  		cmd_listar_categoria(buffer, resposta);
+	  		printf("<==: %s\n", resposta);
+
 	  	} else {
 	  		puts(" ==> comando inexistente <==");
 	  	}
@@ -281,7 +288,6 @@ int cmd_listar_mesa(char *json, char *resposta){
 	}
 
 	/* executa a query */
-	/* int step = sqlite3_step(res); */ 
 	char lin_buff[150];
 	memset(&lin_buff, 0, sizeof(lin_buff));
 	
@@ -332,6 +338,106 @@ int cmd_listar_mesa(char *json, char *resposta){
 	return 0;
 }
 
+/******** cmd_listar_categoria() ***************
+ Executa o comando da API cmd_listar_categoria
+ 1. verifica se o usuario existe. em caso negativo, retorna erro
+ 2. retorna a lista de categorias
+
+ *********************************************/
+int cmd_listar_categoria(char *json, char *resposta){
+
+	char lista_buff[800];
+	memset(&lista_buff, 0, sizeof(lista_buff));
+
+	/* pega o campo id do usuario */
+	int id_usuario;
+	json_scanf(json, strlen(json), "{id_usuario:%d}", &id_usuario);
+	
+	/* usuario existe? */
+	if(get_id_usuario(id_usuario) == -1) {
+		char buf[2048];
+		memset( &buf, 0, sizeof(buf));
+		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro listar_categoria", "id usuario inexistente");
+		strcpy(resposta, buf);
+		return -1; 
+	}
+
+	/* busca no banco de dados */
+	sqlite3 *conn;
+	sqlite3_stmt *res;
+	const char* db = SQLITE_DB;
+	int error = 0;
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	char *sql = "select rowid, titulo from categoria order by titulo";
+
+	error = sqlite3_prepare_v2(conn, sql, -1, &res, 0);
+	if (error != SQLITE_OK) {
+		printf("falha ao buscar dados!: %s\n", sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	/* executa a query */
+	char lin_buff[150];
+	memset(&lin_buff, 0, sizeof(lin_buff));
+	
+	int step = sqlite3_step(res);
+	
+	if(step == SQLITE_DONE) { /* nenhum registro encontrado */
+		/* formata o json de retorno */
+		char buf[800];
+		memset( &buf, 0, sizeof(buf));
+		sprintf(buf, "{\"status\":\"ok listar_categoria\",\"resposta\":[]}");	
+	
+		strcpy(resposta, buf);
+	
+		sqlite3_finalize(res);
+		sqlite3_close(conn);
+
+		return 0;
+	
+	} else if(step == SQLITE_ROW) {
+		/* pega o primeiro registro */
+		strcat(lista_buff, "[");
+		sprintf(lin_buff, "{\"id\":%d, \"titulo\":\"%s\"},", 
+			sqlite3_column_int(res, 0), sqlite3_column_text(res, 1));
+		strcat(lista_buff, lin_buff);
+		memset(&lin_buff, 0, sizeof(lin_buff));
+		
+		/* pega o demais registros */
+		while (sqlite3_step(res) == SQLITE_ROW) {
+			sprintf(lin_buff, "{\"id\":%d, \"titulo\":\"%s\"},", 
+				sqlite3_column_int(res, 0), sqlite3_column_text(res, 1));
+			strcat(lista_buff, lin_buff);
+			memset(&lin_buff, 0, sizeof(lin_buff));
+		}
+		
+		lista_buff[strlen(lista_buff) - 1] = ']';
+	}
+
+	/* formata o json de retorno */
+	char buf[800];
+	memset( &buf, 0, sizeof(buf));
+	sprintf(buf, "{\"status\":\"ok listar_categoria\",\"resposta\":%s}", lista_buff);	
+	
+	strcpy(resposta, buf);
+	
+	sqlite3_finalize(res);
+	sqlite3_close(conn);
+
+	return 0;
+}
+
+
+
 /******** get_id_usuario() ***************
  Retorna id do usuário
  em caso de usuário desconhecido, retorna -1
@@ -344,7 +450,7 @@ int get_id_usuario(int id) {
 	int error = 0;
 	int ret_id = 0;
 	
-	printf("==> get_id_usuario id : %d\n", id);
+	/* printf("==> get_id_usuario id : %d\n", id); */
 
 	error = sqlite3_open(db, &conn);
 	if (error) {

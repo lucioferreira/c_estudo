@@ -45,6 +45,7 @@ int main()
  	 printf("3 - autenticar usuario com senha errada\n");
  	 printf("4 - listar_mesa com usuario existente\n");
  	 printf("5 - listar_mesa com usuario não existente\n");
+ 	 printf("6 - listar_categoria com usuario existente\n");
  	 printf("\n\n\n");
     	
     printf("entre com uma opção: ");
@@ -72,6 +73,10 @@ int main()
 		case 5: /* listar_mesas */
 			puts("listar_mesa usuario não existente");
 			strcpy(json, "{\"id_usuario\":\"300\", \"cmd\":\"listar_mesa\"}");
+			break;
+		case 6: /* listar_categoria */
+			puts("listar_categoria usuario existente");
+			strcpy(json, "{\"id_usuario\":\"1\", \"cmd\":\"listar_categoria\"}");
 			break;
 		default:
 			puts("comando inexistente");

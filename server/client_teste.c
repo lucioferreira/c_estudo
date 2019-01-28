@@ -16,7 +16,7 @@ int main()
     char server_reply[2000];
     int opcao = -1;
     char json[100];
-    
+
     memset(&json, 0, sizeof(json) );
 
     /* Create socket */
@@ -37,7 +37,7 @@ int main()
     }
 
     puts("Connected\n");
-    
+
     printf("\n\n\n");
  	 printf("0 - sair\n");
  	 printf("1 - autenticar usuario existente\n");
@@ -47,15 +47,15 @@ int main()
  	 printf("5 - listar_mesa com usuario não existente\n");
  	 printf("6 - listar_categoria com usuario existente\n");
  	 printf("7 - listar_cardapio com usuario existente\n");
- 	 printf("8 - novo_atendimento com usuario e mesa existentes\n");
+ 	 printf("8 - abrir_pedido com usuario e mesa existentes\n");
  	 printf("\n\n\n");
-    	
+
     printf("entre com uma opção: ");
 	 scanf("%d", &opcao);
 	 switch(opcao) {
 		case 0:
 			close(sock);
-			return 0;			
+			return 0;
 		case 1: /* autenticar usuario existente*/
 			puts("autenticar_usuario");
   			strcpy(json, "{\"cmd\":\"autenticar_usuario\", \"usuario\":\"lucio\", \"senha\":\"lucio\"}");
@@ -84,15 +84,15 @@ int main()
 			puts("listar_cardapio usuario existente");
 			strcpy(json, "{\"id_usuario\":\"1\", \"cmd\":\"listar_cardapio\"}");
 			break;
-		case 8: /* novo_atendimento */
-			puts("novo_atendimento usuario e mesa existente");
-			strcpy(json, "{\"id_usuario\":\"1\", \"id_mesa\":\"1\", \"cmd\":\"novo_atendimento\"}");
+		case 8: /* abrir_pedido */
+			puts("abrir_pedido com usuario e mesa existente");
+			strcpy(json, "{\"id_usuario\":\"1\", \"id_mesa\":\"1\", \"cmd\":\"abrir_pedido\"}");
 			break;
 		default:
 			puts("comando inexistente");
 			close(sock);
 			return 1;
-		}    	
+		}
 
   	 memset(&server_reply, 0, sizeof(server_reply) );
   	 /* char *message = "{\"comando\":\"get_mesas\"}"; */
@@ -114,6 +114,6 @@ int main()
     puts("---  fim  ---");
 
     close(sock);
- 
+
     return 0;
 }

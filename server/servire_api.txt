@@ -69,16 +69,6 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 */
 
 /*
-* lista_cardapio_imagem
-*  retorna a imagem de um item do cxardapio cadastrado no sistema
-* parametros: id_cardapio
-* retorno: nome_imagem, imagem (string base64)
-* status:
-*    webserver: ok
-*    app: em desenvolvimento
-*/
-
-/*
 * abrir_pedido
 *  abre uma determinada mesa para inicio de pedido
 *      com uma mesa associada a esse atendimento.
@@ -103,27 +93,34 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 */
 
 /*
-* fecha_pedido
+* fechar_pedido
 *  fecha uma determinada mesa para finalizacao de pedido
 * parametros: id_pedido, id_usuario
 * retorno:
 * obs:
-*  usar essa API somente depois do pagamento total ser efetuado
-*  o status da mesa é atualizada na tabela mesa
+*  . usar essa API somente depois do pagamento total ser efetuado
+*    o status da mesa é atualizada na tabela mesa
+   . provavelmente essa api será usada pela entidade gerente ou caixa
+   . TODO: atualizar as tabelas de pedido, mesa e pagamento (status de fechamento)
 * status:
 *    webserver: ok
 *    app: em desenvolvimento
 */
 
 /*
-* registra_item_pedido
+* registrar_item_pedido
 *  envia item do cardapio para compor o pedido
 * parametros: id_pedido, id_usuario, id_item_cardapio,
 *             valor, quantidade, customizacao
 * retorno:
 * obs:
-*  ao adicionar um item, o valor do item eh acumulado na tabela de pedido no campo ped_valor_pedido
-*    de acordo com o valor * quantidade.
+*  . ao adicionar um item, o valor do item eh acumulado na tabela de pedido no campo ped_valor_pedido
+*      de acordo com o valor * quantidade.
+   . status:
+      1 - pendente: cliente confirmou pedido à mesa
+      2 - pronto: cozinha preparou o item
+      3 - entregue: garçon entregou e o item foi aceito pelo cliente
+      4 - cancelado: cliente cancelou o item
 * status:
 *    webserver: ok
 *    app: em desenvolvimento
@@ -186,7 +183,19 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 * status: em desenvolvimento
 */
 
+/*
+* lista_cardapio_imagem
+*  retorna a imagem de um item do cxardapio cadastrado no sistema
+* parametros: id_cardapio
+* retorno: nome_imagem, imagem (string base64)
+* status:
+*    webserver: ok
+*    app: em desenvolvimento
+*/
+
+
 TODO:
-adicionar o parametro id_mesa a API lista_pedidos para agilizar na pesquisa
+  . adicionar o parametro id_mesa a API listar_pedidos para agilizar na pesquisa
+  . adicionar api de mudar status da mesa (para efeito de juntar ou reservar mesa)
 
 Perguntas:

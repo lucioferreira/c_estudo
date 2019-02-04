@@ -48,6 +48,7 @@ int main()
  	 printf("6 - listar_categoria com usuario existente\n");
  	 printf("7 - listar_cardapio com usuario existente\n");
  	 printf("8 - abrir_pedido com usuario e mesa existentes\n");
+ 	 printf("9 - fechar_pedido com usuario e pedido existentes\n");
  	 printf("\n\n\n");
 
     printf("entre com uma opção: ");
@@ -87,6 +88,10 @@ int main()
 		case 8: /* abrir_pedido */
 			puts("abrir_pedido com usuario e mesa existente");
 			strcpy(json, "{\"id_usuario\":\"1\", \"id_mesa\":\"1\", \"cmd\":\"abrir_pedido\"}");
+			break;
+		case 9: /* fechar_pedido */
+			puts("fechar_pedido com usuario e pedido existente");
+			strcpy(json, "{\"id_usuario\":\"1\", \"id_pedido\":\"1\", \"cmd\":\"fechar_pedido\"}");
 			break;
 		default:
 			puts("comando inexistente");

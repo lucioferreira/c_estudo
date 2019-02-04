@@ -46,6 +46,7 @@ int get_id_usuario(int id);
 int get_mesa_status(int id);
 int set_mesa_status(int id_mesa, int status);
 int get_mesa_pedido(int id_pedido);
+int set_pedido_status(int id_pedido, int status);
 
 
 int main() {
@@ -734,73 +735,28 @@ char buf[2048];
 	}
 
    /* atualiza o status da mesa */
-	id_mesa = ;
-	if(set_mesa_status(id_mesa, PEDIDO_STATUS_PAGO) == -1) {
+	if(set_mesa_status(id_mesa, MESA_STATUS_LIVRE) == -1) {
 		char buf[2048];
 		memset( &buf, 0, sizeof(buf));
 		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
-		json_printf(&out, "{status: %Q , resposta:%Q}", "erro fechar_pedido", "mesa não consegue fechar");
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro fechar_pedido", "status da mesa falhou ao atualizar");
 		strcpy(resposta, buf);
 		return -1;
 	}
 
 	/* atualiza o status do pedido (atendimento) */
-	id_mesa = ;
-	if(set_pedido_status(id_mesa, MESA_STATUS_LIVRE) == -1) {
+	if(set_pedido_status(id_mesa, PEDIDO_STATUS_PAGO) == -1) {
 		char buf[2048];
 		memset( &buf, 0, sizeof(buf));
 		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
-		json_printf(&out, "{status: %Q , resposta:%Q}", "erro fechar_pedido", "mesa não consegue fechar");
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro fechar_pedido", "status do pedido falhou ao atualizar");
 		strcpy(resposta, buf);
 		return -1;
 	}
+	
+	sprintf(buf, "{\"status\":\"ok fechar_pedido\",\"resposta\":{\"mensagem\": \"ok\"}}" );
 
-
-	/* atualiza o status da mesa e do pedido (atendimento) */
-	sqlite3 *conn;
-	const char* db = SQLITE_DB;
-	int error = 0;
-	sqlite3_stmt *update_stmt = NULL;
-
-	error = sqlite3_open(db, &conn);
-	if (error) {
-		puts("Falha ao abrir o banco de dados");
-		sqlite3_close(conn);
-		return -1;
-	}
-
-	char *qr_ped = "update mesa set status = ? "
-                    " where rowid = ?";
-
-    int rc = sqlite3_prepare_v2(conn, qr_ped, -1, &update_stmt, NULL);
-	if(SQLITE_OK != rc) {
-		fprintf(stderr, "Erro ao preparar o comando de atualização de status de mesa %s (%i): %s\n", qr_ped, rc, sqlite3_errmsg(conn));
-		sqlite3_close(conn);
-		exit(1);
-	}
-
-	sqlite3_bind_int(update_stmt, 1, MESA_STATUS_EM_ATENDIMENTO);
-	sqlite3_bind_int(update_stmt, 2, id_mesa);
-
-	/* executa a atualização */
-	rc = sqlite3_step(update_stmt);
-	if(SQLITE_DONE != rc) {
-		fprintf(stderr, "Erro ao atualizar status da mesa no bd (%i): %s\n", rc, sqlite3_errmsg(conn));
-		sqlite3_close(conn);
-		return -1;
-	} else {
-		printf("Mesa atualizada com sucesso\n\n");
-	}
-
-	sprintf(buf, "{\"status\":\"ok fechar_pedido\",\"resposta\":{\"id_pedido\": %i}}", (int)novo_id );
-
-    strcpy(resposta, buf);
-
-    sqlite3_finalize(insert_stmt);
-    sqlite3_close(conn);
-
-
-
+   strcpy(resposta, buf);
 
     return 0;
 }
@@ -958,6 +914,97 @@ int set_mesa_status(int id_mesa, int status) {
  *********************************************/
 int get_mesa_pedido(int id_pedido){
 
-    return 0;
+	sqlite3 *conn;
+	sqlite3_stmt *res;
+	const char* db = SQLITE_DB;
+	int error = 0;
+	int ret = 0;
+
+	/* printf("==> get_mesa_pedido id : %d\n", id_pedido); */
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	char *sql = "select mesa_id from pedido where rowid = ?";
+
+	error = sqlite3_prepare_v2(conn, sql, -1, &res, 0);
+	if (error != SQLITE_OK) {
+		printf("falha ao buscar dados!: %s\n", sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	sqlite3_bind_int(res, 1, id_pedido);
+
+	/* executa a query */
+	int step = sqlite3_step(res);
+	if(step == SQLITE_ROW){
+		ret = sqlite3_column_int(res,0);
+	} else if(step == SQLITE_DONE) {
+		ret = -1;
+	}
+
+	sqlite3_finalize(res);
+	sqlite3_close(conn);
+
+	return ret;
+
+}
+
+/******** set_pedido_status() ***************
+ define o status do pedido
+ em caso de erro, retorna -1
+ *********************************************/
+int set_pedido_status(int id_pedido, int status) {
+	sqlite3 *conn;
+	const char* db = SQLITE_DB;
+	int error = 0;
+	int ret = 0;
+	sqlite3_stmt *update_stmt = NULL;
+
+	/* printf("==> set_pedido_status id_pedido : %d, status: %d\n", id_pedido, status); */
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	const char *sql = "update pedido set status = ?,  dt_fechamento = datetime(\'now\', \'localtime\') "
+							" where rowid = ?";
+
+	error = sqlite3_prepare_v2(conn, sql, -1, &update_stmt, NULL);
+	if(SQLITE_OK != error) {
+		fprintf(stderr, "Erro ao preparar o comando de atualização %s (%i): %s\n", sql, error, sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		exit(1);
+	}
+
+	error = sqlite3_prepare_v2(conn, sql, -1, &update_stmt, NULL);
+	if (error != SQLITE_OK) {
+		printf("falha ao preparar a query de atualização de  status do pedido!: %s\n", sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	sqlite3_bind_int(update_stmt, 1, status); /* status do pedido mesa */
+	sqlite3_bind_int(update_stmt, 2, id_pedido); /* id do pedido - paramentro de busca do rowid */
+
+	/* executa a query */
+	int step = sqlite3_step(update_stmt);
+	if(step != SQLITE_DONE){
+        fprintf(stderr, "erro ao atualizar o status do pedido (%i): %s\n", step, sqlite3_errmsg(conn));
+        return -1;
+	}
+
+	sqlite3_finalize(update_stmt);
+	sqlite3_close(conn);
+
+	return ret;
 
 }

@@ -24,6 +24,10 @@
 #define MESA_STATUS_LIVRE 1
 #define MESA_STATUS_EM_ATENDIMENTO 2
 
+#define PEDIDO_STATUS_ABERTO 1
+#define PEDIDO_STATUS_PAGO 2
+
+
 void connection_proxy(int); /* função de entrada para cada conexão */
 int get_comando(char *json, char *comando); /* retorna o campo "comando" do json */
 
@@ -34,12 +38,14 @@ int cmd_listar_mesa(char *json, char *resposta);
 int cmd_listar_categoria(char *json, char *resposta);
 int cmd_listar_cardapio(char *json, char *resposta);
 int cmd_abrir_pedido(char *json, char *resposta);
+int cmd_fechar_pedido(char *json, char *resposta);
 
 
 /* funções helper */
 int get_id_usuario(int id);
 int get_mesa_status(int id);
 int set_mesa_status(int id_mesa, int status);
+int get_mesa_pedido(int id_pedido);
 
 
 int main() {
@@ -145,7 +151,10 @@ void connection_proxy (int sock) {
 	  		puts("==> abrir_pedido");
 	  		cmd_abrir_pedido(buffer, resposta);
 	  		printf("<==: %s\n", resposta);
-
+	  	} else if(strcmp(comando, "fechar_pedido" ) == 0) {
+	  		puts("==> fechar_pedido");
+	  		cmd_fechar_pedido(buffer, resposta);
+	  		printf("<==: %s\n", resposta);
 	  	} else {
 	  		puts(" ==> comando inexistente <==");
 	  	}
@@ -658,7 +667,7 @@ int cmd_abrir_pedido(char *json, char *resposta){
 	sqlite3_bind_int(insert_stmt, 1, id_usuario);
 	sqlite3_bind_int(insert_stmt, 2, id_mesa);
 
-	/* Actually do the insert! */
+	/* executa a inclusão */
 	rc = sqlite3_step(insert_stmt);
 	if(SQLITE_DONE != rc) {
 		fprintf(stderr, "Erro ao inserir pedido no bd (%i): %s\n", rc, sqlite3_errmsg(conn));
@@ -668,7 +677,7 @@ int cmd_abrir_pedido(char *json, char *resposta){
 		printf("Pedido inserido com sucesso\n\n");
 	}
 
-	/* Now attempt to get that row out */
+	/* tenta pegar o id da nova a nova linha inserida */
 	sqlite3_int64 novo_id = sqlite3_last_insert_rowid(conn);
 
 	if(set_mesa_status(id_mesa, MESA_STATUS_EM_ATENDIMENTO) != 0) {
@@ -687,6 +696,114 @@ int cmd_abrir_pedido(char *json, char *resposta){
 	return 0;
 }
 
+/******** cmd_fechar_pedido() ***************
+ Executa o comando da API cmd_fechar_pedido
+ 1. verifica se o usuario existe. em caso negativo, retorna erro
+ 2. modifica status da mesa para livre
+ 3. modifica status do pedido para fechado
+
+ *********************************************/
+int cmd_fechar_pedido(char *json, char *resposta){
+
+char buf[2048];
+	memset(&buf, 0, sizeof(buf));
+
+	/* pega o campo id do usuario */
+	int id_usuario, id_pedido, id_mesa;
+	json_scanf(json, strlen(json), "{id_usuario:%d, id_pedido:%d}", &id_usuario, &id_pedido);
+
+	/* usuario existe? */
+	if(get_id_usuario(id_usuario) == -1) {
+		char buf[2048];
+		memset( &buf, 0, sizeof(buf));
+		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro fechar_pedido", "id usuario inexistente");
+		strcpy(resposta, buf);
+		return -1;
+	}
+
+   /* mesa com problemas? */
+	id_mesa = get_mesa_pedido(id_pedido);
+	if(id_mesa == -1) {
+		char buf[2048];
+		memset( &buf, 0, sizeof(buf));
+		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro fechar_pedido", "id mesa com problema");
+		strcpy(resposta, buf);
+		return -1;
+	}
+
+   /* atualiza o status da mesa */
+	id_mesa = ;
+	if(set_mesa_status(id_mesa, PEDIDO_STATUS_PAGO) == -1) {
+		char buf[2048];
+		memset( &buf, 0, sizeof(buf));
+		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro fechar_pedido", "mesa não consegue fechar");
+		strcpy(resposta, buf);
+		return -1;
+	}
+
+	/* atualiza o status do pedido (atendimento) */
+	id_mesa = ;
+	if(set_pedido_status(id_mesa, MESA_STATUS_LIVRE) == -1) {
+		char buf[2048];
+		memset( &buf, 0, sizeof(buf));
+		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro fechar_pedido", "mesa não consegue fechar");
+		strcpy(resposta, buf);
+		return -1;
+	}
+
+
+	/* atualiza o status da mesa e do pedido (atendimento) */
+	sqlite3 *conn;
+	const char* db = SQLITE_DB;
+	int error = 0;
+	sqlite3_stmt *update_stmt = NULL;
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	char *qr_ped = "update mesa set status = ? "
+                    " where rowid = ?";
+
+    int rc = sqlite3_prepare_v2(conn, qr_ped, -1, &update_stmt, NULL);
+	if(SQLITE_OK != rc) {
+		fprintf(stderr, "Erro ao preparar o comando de atualização de status de mesa %s (%i): %s\n", qr_ped, rc, sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		exit(1);
+	}
+
+	sqlite3_bind_int(update_stmt, 1, MESA_STATUS_EM_ATENDIMENTO);
+	sqlite3_bind_int(update_stmt, 2, id_mesa);
+
+	/* executa a atualização */
+	rc = sqlite3_step(update_stmt);
+	if(SQLITE_DONE != rc) {
+		fprintf(stderr, "Erro ao atualizar status da mesa no bd (%i): %s\n", rc, sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		return -1;
+	} else {
+		printf("Mesa atualizada com sucesso\n\n");
+	}
+
+	sprintf(buf, "{\"status\":\"ok fechar_pedido\",\"resposta\":{\"id_pedido\": %i}}", (int)novo_id );
+
+    strcpy(resposta, buf);
+
+    sqlite3_finalize(insert_stmt);
+    sqlite3_close(conn);
+
+
+
+
+    return 0;
+}
 
 
 /******** get_id_usuario() ***************
@@ -834,3 +951,13 @@ int set_mesa_status(int id_mesa, int status) {
 	return ret;
 }
 
+
+/******** get_mesa_pedido() ***************
+ retorna o id da mesa associada a um pedido
+ em caso de erro, retorna -1
+ *********************************************/
+int get_mesa_pedido(int id_pedido){
+
+    return 0;
+
+}

@@ -87,6 +87,12 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 	3 - Reservada
 	4 - Conjugada (ligada a outra mesa)
 
+    TODO: confirmar Status do pedido
+	1 - Aberto
+	2 - Pago
+	3 - Cancelado
+	4 - Cortesia
+
 * status:
 *    webserver: ok
 *    app: em desenvolvimento
@@ -96,7 +102,8 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 * fechar_pedido
 *  fecha uma determinada mesa para finalizacao de pedido
 * parametros: id_pedido, id_usuario
-* retorno:
+* retorno: "ok" em caso positivo
+*          descrição do erro em caso negativo
 * obs:
 *  . usar essa API somente depois do pagamento total ser efetuado
 *    o status da mesa é atualizada na tabela mesa
@@ -197,5 +204,6 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 TODO:
   . adicionar o parametro id_mesa a API listar_pedidos para agilizar na pesquisa
   . adicionar api de mudar status da mesa (para efeito de juntar ou reservar mesa)
+  . definir status de pedido (aberto, pago, cancelado)
 
 Perguntas:

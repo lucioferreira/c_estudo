@@ -31,8 +31,14 @@
 #define PEDIDO_STATUS_CANCELADO 3
 #define PEDIDO_STATUS_CORTESIA 4
 
+#define ITEM_PEDIDO_STATUS_PENDENTE 1
+#define ITEM_PEDIDO_STATUS_PRONTO 2
+#define ITEM_PEDIDO_STATUS_ENTREGUE 3
+#define ITEM_PEDIDO_STATUS_CANCELADO 4
 
-void connection_proxy(int); /* função de entrada para cada conexão */
+
+/* função de entrada para cada conexão */
+void connection_proxy(int); 
 int get_comando(char *json, char *comando); /* retorna o campo "comando" do json */
 
 
@@ -43,6 +49,7 @@ int cmd_listar_categoria(char *json, char *resposta);
 int cmd_listar_cardapio(char *json, char *resposta);
 int cmd_abrir_pedido(char *json, char *resposta);
 int cmd_fechar_pedido(char *json, char *resposta);
+int cmd_registrar_item__pedido(char *json, char *resposta);
 
 
 /* funções helper */
@@ -160,15 +167,14 @@ void connection_proxy (int sock) {
 	  		puts("==> fechar_pedido");
 	  		cmd_fechar_pedido(buffer, resposta);
 	  		printf("<==: %s\n", resposta);
+	  	} else if(strcmp(comando, "registrar_item_pedido" ) == 0) {
+	  		puts("==> registrar_item_pedido");
+	  		cmd_fechar_pedido(buffer, resposta);
+	  		printf("<==: %s\n", resposta);
+	  		
 	  	} else {
 	  		puts(" ==> comando inexistente <==");
 	  	}
-
-         /* Envia a mensagem de volta ao client */
-			/*
-         write(sock , buffer , strlen(buffer));
-         printf("mensagem: %s\n", buffer);
-         */
 
          /* Envia a mensagem de volta ao client */
          printf("resp2: %s\n", resposta);
@@ -765,6 +771,21 @@ char buf[2048];
     return 0;
 }
 
+/******** cmd_registrar_item_pedido() ***************
+ Executa o comando da API cmd_registrar_item_pedido
+ 1. verifica se o usuario existe. em caso negativo, retorna erro
+ 2. adiciona item na tabela de itens de pedidos 
+ 3. atualiza preço e quantidade na tabela de pedido
+
+ *********************************************/
+
+
+int cmd_registrar_item_pedido(char *json, char *resposta) {
+	
+	return 0;
+	
+}
+
 
 /******** get_id_usuario() ***************
  Retorna id do usuário
@@ -970,7 +991,7 @@ int set_pedido_status(int id_pedido, int status) {
 	int ret = 0;
 	sqlite3_stmt *update_stmt = NULL;
 
-	printf("==> set_pedido_status id_pedido : %d, status: %d\n", id_pedido, status);
+	/* printf("==> set_pedido_status id_pedido : %d, status: %d\n", id_pedido, status); */
 
 	error = sqlite3_open(db, &conn);
 	if (error) {

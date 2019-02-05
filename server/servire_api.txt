@@ -121,8 +121,8 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 *             valor, quantidade, customizacao
 * retorno:
 * obs:
-*  . ao adicionar um item, o valor do item eh acumulado na tabela de pedido no campo ped_valor_pedido
-*      de acordo com o valor * quantidade.
+*  . ao adicionar um item na tabela de item_pedido, o valor do item eh acumulado na tabela de pedido 
+*       no campo valor_pedido com o valor * quantidade.
    . status:
       1 - pendente: cliente confirmou pedido à mesa
       2 - pronto: cozinha preparou o item

@@ -49,6 +49,8 @@ int main()
  	 printf("7 - listar_cardapio com usuario existente\n");
  	 printf("8 - abrir_pedido com usuario e mesa existentes\n");
  	 printf("9 - fechar_pedido com usuario e pedido existentes\n");
+ 	 printf("10 - registrar_item_pedido\n");
+ 	 registrar_item_pedido
  	 printf("\n\n\n");
 
     printf("entre com uma opção: ");
@@ -92,6 +94,10 @@ int main()
 		case 9: /* fechar_pedido */
 			puts("fechar_pedido com usuario e pedido existente");
 			strcpy(json, "{\"id_usuario\":\"1\", \"id_pedido\":\"1\", \"cmd\":\"fechar_pedido\"}");
+			break;
+		case 10: /* registrar_item_pedido */
+			puts("registrar_item_pedido ");
+			strcpy(json, "{\"id_usuario\":\"1\", \"id_pedido\":\"1\", \"cmd\":\"registrar_item_pedido\", \"id_item\":\"2\", \"valor\":\"25\", \"qtde\":\"2\", \"custom\":\"nada\"}");
 			break;
 		default:
 			puts("comando inexistente");

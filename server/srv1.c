@@ -23,9 +23,13 @@
 
 #define MESA_STATUS_LIVRE 1
 #define MESA_STATUS_EM_ATENDIMENTO 2
+#define MESA_STATUS_RESERVADA 3
+#define MESA_STATUS_CONJUGADA 4
 
 #define PEDIDO_STATUS_ABERTO 1
 #define PEDIDO_STATUS_PAGO 2
+#define PEDIDO_STATUS_CANCELADO 3
+#define PEDIDO_STATUS_CORTESIA 4
 
 
 void connection_proxy(int); /* função de entrada para cada conexão */
@@ -618,22 +622,22 @@ int cmd_abrir_pedido(char *json, char *resposta){
 		char buf[2048];
 		memset( &buf, 0, sizeof(buf));
 		switch(mesa_status) {
-			case 2: /* em atendimento  */
-                {
+			case MESA_STATUS_EM_ATENDIMENTO: /* em atendimento  */
+            {
 				struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
 				json_printf(&out, "{status: %Q , resposta:%Q}", "erro abrir_pedido", "mesa em atendimento");
 				strcpy(resposta, buf);
 				return -1;
 				}
-			case 3: /* reservada  */
-                {
+			case MESA_STATUS_RESERVADA: /* reservada  */
+            {
 				struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
 				json_printf(&out, "{status: %Q , resposta:%Q}", "erro abrir_pedido", "mesa reservada");
 				strcpy(resposta, buf);
 				return -1;
 				}
-			case 4: /* conjugada */
-                {
+			case MESA_STATUS_CONJUGADA: /* conjugada */
+            {
 				struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
 				json_printf(&out, "{status: %Q , resposta:%Q}", "erro abrir_pedido", "mesa conjugada");
 				strcpy(resposta, buf);
@@ -745,7 +749,7 @@ char buf[2048];
 	}
 
 	/* atualiza o status do pedido (atendimento) */
-	if(set_pedido_status(id_mesa, PEDIDO_STATUS_PAGO) == -1) {
+	if(set_pedido_status(id_pedido, PEDIDO_STATUS_PAGO) == -1) {
 		char buf[2048];
 		memset( &buf, 0, sizeof(buf));
 		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
@@ -966,7 +970,7 @@ int set_pedido_status(int id_pedido, int status) {
 	int ret = 0;
 	sqlite3_stmt *update_stmt = NULL;
 
-	/* printf("==> set_pedido_status id_pedido : %d, status: %d\n", id_pedido, status); */
+	printf("==> set_pedido_status id_pedido : %d, status: %d\n", id_pedido, status);
 
 	error = sqlite3_open(db, &conn);
 	if (error) {
@@ -977,13 +981,6 @@ int set_pedido_status(int id_pedido, int status) {
 
 	const char *sql = "update pedido set status = ?,  dt_fechamento = datetime(\'now\', \'localtime\') "
 							" where rowid = ?";
-
-	error = sqlite3_prepare_v2(conn, sql, -1, &update_stmt, NULL);
-	if(SQLITE_OK != error) {
-		fprintf(stderr, "Erro ao preparar o comando de atualização %s (%i): %s\n", sql, error, sqlite3_errmsg(conn));
-		sqlite3_close(conn);
-		exit(1);
-	}
 
 	error = sqlite3_prepare_v2(conn, sql, -1, &update_stmt, NULL);
 	if (error != SQLITE_OK) {

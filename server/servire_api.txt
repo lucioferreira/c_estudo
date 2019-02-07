@@ -135,6 +135,27 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 
 
 /*
+* listar_tipo_pagamento
+*  retorna a lista dos tipos de pagamento
+* parametros
+* ================
+* entrada: id_usuario, comando (cmd)
+* retorno: lista <id, titulo, tipo>
+* obs:
+*  o campo tpag_tipo é um enum, para fins de agrupamento nos relatórios financeiros:
+     cr: crédito
+     db: débido
+     dn: dinheiro
+     ca: cartões de alimentação
+*  Essa API é usada no processo de pagamento (fechamento) do pedido total ou parcial.
+* status:
+*    webserver: ok
+*    app: em desenvolvimento
+*/
+
+
+
+/*
 * pagamento_pedido
 *  efetua pagamento total ou parcial de um pedido aberto
 * parametros:
@@ -154,25 +175,6 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 *    webserver: ok
 *    app: em desenvolvimento
 */
-
-
-/*
-* lista_tipo_pagamento
-*  retorna a lista dos tipos de pagamento
-* parametros:
-* retorno: lista <id, descrição, tipo>
-* obs:
-*  o campo tpag_tipo é um enum, para fins de agrupamento nos relatórios financeiros:
-     cr: crédito
-     db: débido
-     dn: dinheiro
-     ca: cartão alimentação
-*  Essa API é usada no fechamento da mesa (pagamento) total ou parcial.
-* status:
-*    webserver: ok
-*    app: em desenvolvimento
-*/
-
 
 /*
 * lista_pedidos

@@ -50,6 +50,7 @@ int cmd_listar_cardapio(char *json, char *resposta);
 int cmd_abrir_pedido(char *json, char *resposta);
 int cmd_fechar_pedido(char *json, char *resposta);
 int cmd_registrar_item__pedido(char *json, char *resposta);
+int cmd_listar_tipo_pagamento(char *json, char *resposta);
 
 
 /* funções helper */
@@ -171,6 +172,10 @@ void connection_proxy (int sock) {
 	  		puts("==> registrar_item_pedido");
 	  		cmd_fechar_pedido(buffer, resposta);
 	  		printf("<==: %s\n", resposta);
+	  	} else if(strcmp(comando, "listar_tipo_pagamento" ) == 0) {
+	  		puts("==> listar_tipo_pagamento");
+	  		cmd_listar_tipo_pagamento(buffer, resposta);
+	  		printf("<==: %s\n", resposta);
 	  		
 	  	} else {
 	  		puts(" ==> comando inexistente <==");
@@ -191,7 +196,7 @@ void connection_proxy (int sock) {
 	 }
 
 	 if(read_size == 0) {
-	  puts("Client disconectou");
+	  puts("Client desconectou");
 	  fflush(stdout);
 	 }
 	 else if(read_size == -1) {
@@ -781,10 +786,38 @@ char buf[2048];
 
 
 int cmd_registrar_item_pedido(char *json, char *resposta) {
+
+	/* formata o json de retorno */
+	char buf[800];
+	memset( &buf, 0, sizeof(buf));
+	sprintf(buf, "{\"status\":\"ok registrar_item_pedido\",\"resposta\":\"WIP\"}");
+
+	strcpy(resposta, buf);
+
+
 	
 	return 0;
 	
 }
+
+/******** cmd_listar_tipo_pagamento() ***************
+ Executa o comando da API cmd_listar_tipo_pagamento
+ 1. verifica se o usuario existe. em caso negativo, retorna erro
+ 2. retorna a lista de tipos de pedidos
+
+ *********************************************/
+int cmd_listar_tipo_pagamento(char *json, char *resposta){
+
+	/* formata o json de retorno */
+	char buf[800];
+	memset( &buf, 0, sizeof(buf));
+	sprintf(buf, "{\"status\":\"ok listar_tipo_pagamento\",\"resposta\":\"WIP\"}");
+
+	strcpy(resposta, buf);
+
+	return 0;
+}
+
 
 
 /******** get_id_usuario() ***************

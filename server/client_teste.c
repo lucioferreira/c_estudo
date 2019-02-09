@@ -15,7 +15,7 @@ int main()
     struct sockaddr_in server;
     char server_reply[2000];
     int opcao = -1;
-    char json[100];
+    char json[1024];
 
     memset(&json, 0, sizeof(json) );
 
@@ -51,7 +51,6 @@ int main()
  	 printf("9 - fechar_pedido com usuario e pedido existentes\n");
  	 printf("10 - registrar_item_pedido\n");
  	 printf("11 - listar_tipo_pagamento\n");
- 	 registrar_item_pedido
  	 printf("\n\n\n");
 
     printf("entre com uma opção: ");

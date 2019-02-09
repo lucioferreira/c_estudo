@@ -49,7 +49,7 @@ int cmd_listar_categoria(char *json, char *resposta);
 int cmd_listar_cardapio(char *json, char *resposta);
 int cmd_abrir_pedido(char *json, char *resposta);
 int cmd_fechar_pedido(char *json, char *resposta);
-int cmd_registrar_item__pedido(char *json, char *resposta);
+int cmd_registrar_item_pedido(char *json, char *resposta);
 int cmd_listar_tipo_pagamento(char *json, char *resposta);
 
 
@@ -96,7 +96,7 @@ int main() {
     /* loop para receber todos as conexões que entram */
     while(1) {
 
-	    /* aceita a conexão de um client */
+	    /* aceita a conexão de um cliente */
 	    client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
 	    if (client_sock < 0) {
 	        perror("accept falhou!!");
@@ -170,7 +170,7 @@ void connection_proxy (int sock) {
 	  		printf("<==: %s\n", resposta);
 	  	} else if(strcmp(comando, "registrar_item_pedido" ) == 0) {
 	  		puts("==> registrar_item_pedido");
-	  		cmd_fechar_pedido(buffer, resposta);
+	  		cmd_registrar_item_pedido(buffer, resposta);
 	  		printf("<==: %s\n", resposta);
 	  	} else if(strcmp(comando, "listar_tipo_pagamento" ) == 0) {
 	  		puts("==> listar_tipo_pagamento");
@@ -673,11 +673,11 @@ int cmd_abrir_pedido(char *json, char *resposta){
 	char *qr_ped = "insert into pedido (mesa_id, usu_id) "
                     " values (?,?)";
 
-    int rc = sqlite3_prepare_v2(conn, qr_ped, -1, &insert_stmt, NULL);
+   int rc = sqlite3_prepare_v2(conn, qr_ped, -1, &insert_stmt, NULL);
 	if(SQLITE_OK != rc) {
 		fprintf(stderr, "Erro ao preparar o comando de insert no pedido %s (%i): %s\n", qr_ped, rc, sqlite3_errmsg(conn));
 		sqlite3_close(conn);
-		exit(1);
+		return -1;
 	}
 
 	sqlite3_bind_int(insert_stmt, 1, id_usuario);
@@ -787,17 +787,78 @@ char buf[2048];
 
 int cmd_registrar_item_pedido(char *json, char *resposta) {
 
-	/* formata o json de retorno */
-	char buf[800];
-	memset( &buf, 0, sizeof(buf));
-	sprintf(buf, "{\"status\":\"ok registrar_item_pedido\",\"resposta\":\"WIP\"}");
+	char buf[512];
+	memset(&buf, 0, sizeof(buf));
 
-	strcpy(resposta, buf);
+	/* pega os campos do json de entrada */
+	int id_usuario, id_pedido, id_item, valor, qtde;
+	char *custom = NULL;
+	json_scanf(json, strlen(json), "{id_usuario:%d, id_pedido:%d, id_item:%d, valor:%d, qtde:%d, custom:%Q}", 
+		&id_usuario, &id_pedido, &id_item, &valor, &qtde, &custom);
 
-
+	/* usuario existe? */
+	if(get_id_usuario(id_usuario) == -1) {
+		char errobuf[1024];
+		memset( &errobuf, 0, sizeof(errobuf));
+		struct json_out out = JSON_OUT_BUF(errobuf, sizeof(errobuf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro registrar_item_pedido", "id usuario inexistente");
+		strcpy(resposta, errobuf);
+		return -1;
+	}
 	
-	return 0;
-	
+	/* cria um novo registro de item de pedido (atendimento) */
+	sqlite3 *conn;
+	const char* db = SQLITE_DB;
+	int error = 0;
+	sqlite3_stmt *insert_stmt = NULL;
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	char *qr_item = "insert into pedido_item (ped_id, car_id, status, quantidade, valor, custom) "
+                    " values (?,?,?,?,?,?)";
+
+   int rc = sqlite3_prepare_v2(conn, qr_item, -1, &insert_stmt, NULL);
+	if(SQLITE_OK != rc) {
+		fprintf(stderr, "Erro ao preparar o comando de insert no item de pedido %s (%i): %s\n", qr_item, rc, sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	sqlite3_bind_int(insert_stmt, 1, id_pedido);
+	sqlite3_bind_int(insert_stmt, 2, id_item);
+	sqlite3_bind_int(insert_stmt, 3, 1); /* status do item do pedido : pendente */
+	sqlite3_bind_int(insert_stmt, 4, qtde);
+	sqlite3_bind_int(insert_stmt, 5, valor);
+	sqlite3_bind_text(insert_stmt, 6, custom, -1, 0);
+
+	/* executa a inclusão */
+	rc = sqlite3_step(insert_stmt);
+	if(SQLITE_DONE != rc) {
+		char errobuf[1024];
+		memset( &errobuf, 0, sizeof(errobuf));
+		struct json_out out = JSON_OUT_BUF(errobuf, sizeof(errobuf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro registrar_item_pedido", "impedido de inserir registro");
+		strcpy(resposta, errobuf);
+		fprintf(stderr, "Erro ao inserir item de pedido no bd (%i): %s\n", rc, sqlite3_errmsg(conn));
+		sqlite3_finalize(insert_stmt);
+		sqlite3_close(conn);
+		return -1;
+	} else {
+		printf("Item de Pedido inserido com sucesso\n\n");
+	}
+
+	sprintf(buf, "{\"status\":\"ok registrar_item_pedido\",\"resposta\":{\"mensagem\": \"ok\"}}" );
+   strcpy(resposta, buf);
+
+   sqlite3_finalize(insert_stmt);
+   sqlite3_close(conn);
+
+	return 0;	
 }
 
 /******** cmd_listar_tipo_pagamento() ***************
@@ -808,14 +869,95 @@ int cmd_registrar_item_pedido(char *json, char *resposta) {
  *********************************************/
 int cmd_listar_tipo_pagamento(char *json, char *resposta){
 
+	char lista_buff[1024];
+	memset(&lista_buff, 0, sizeof(lista_buff));
+
+	/* pega o campo id do usuario */
+	int id_usuario;
+	json_scanf(json, strlen(json), "{id_usuario:%d}", &id_usuario);
+
+	/* usuario existe? */
+	if(get_id_usuario(id_usuario) == -1) {
+		char buf[2048];
+		memset( &buf, 0, sizeof(buf));
+		struct json_out out = JSON_OUT_BUF(buf, sizeof(buf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro listar_tipo_pagamento", "id usuario inexistente");
+		strcpy(resposta, buf);
+		return -1;
+	}
+
+	/* busca no banco de dados */
+	sqlite3 *conn;
+	sqlite3_stmt *res;
+	const char* db = SQLITE_DB;
+	int error = 0;
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	char *sql = "select rowid, titulo, tipo from tipo_pagamento order by tipo";
+
+	error = sqlite3_prepare_v2(conn, sql, -1, &res, 0);
+	if (error != SQLITE_OK) {
+		printf("falha ao buscar dados!: %s\n", sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	/* executa a query */
+	char lin_buff[200];
+	memset(&lin_buff, 0, sizeof(lin_buff));
+
+	int step = sqlite3_step(res);
+
+	if(step == SQLITE_DONE) { /* nenhum registro encontrado */
+		/* formata o json de retorno */
+		char buf[800];
+		memset( &buf, 0, sizeof(buf));
+		sprintf(buf, "{\"status\":\"ok listar_tipo_pagamento\",\"resposta\":[]}");
+
+		strcpy(resposta, buf);
+
+		sqlite3_finalize(res);
+		sqlite3_close(conn);
+
+		return 0;
+
+	} else if(step == SQLITE_ROW) {
+		/* pega o primeiro registro */
+		strcat(lista_buff, "[");
+		sprintf(lin_buff, "{\"id\":%d,\"titulo\":\"%s\",\"tipo\":%d},",
+			sqlite3_column_int(res, 0), sqlite3_column_text(res, 1), sqlite3_column_int(res, 2));
+		strcat(lista_buff, lin_buff);
+		memset(&lin_buff, 0, sizeof(lin_buff));
+
+		/* pega o demais registros */
+		while (sqlite3_step(res) == SQLITE_ROW) {
+			sprintf(lin_buff, "{\"id\":%d, \"titulo\":\"%s\",\"tipo\":%d},",
+				sqlite3_column_int(res, 0), sqlite3_column_text(res, 1), sqlite3_column_int(res, 2));
+			strcat(lista_buff, lin_buff);
+			memset(&lin_buff, 0, sizeof(lin_buff));
+		}
+
+		lista_buff[strlen(lista_buff) - 1] = ']';
+	}
+
 	/* formata o json de retorno */
-	char buf[800];
+	char buf[2018];
 	memset( &buf, 0, sizeof(buf));
-	sprintf(buf, "{\"status\":\"ok listar_tipo_pagamento\",\"resposta\":\"WIP\"}");
+	sprintf(buf, "{\"status\":\"ok listar_tipo_pagamento\",\"resposta\":%s}", lista_buff);
 
 	strcpy(resposta, buf);
 
+	sqlite3_close(conn);
+	sqlite3_finalize(res);
+
 	return 0;
+
 }
 
 

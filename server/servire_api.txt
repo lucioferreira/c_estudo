@@ -117,9 +117,8 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 /*
 * registrar_item_pedido
 *  envia item do cardapio para compor o pedido
-* parametros: id_pedido, id_usuario, id_item_cardapio,
-*             valor, quantidade, customizacao
-* retorno:
+* parametros: id_pedido, id_usuario, id_item, valor, qtde, custom
+* retorno: "ok" em caso positivo
 * obs:
 *  . ao adicionar um item na tabela de item_pedido, o valor do item eh acumulado na tabela de pedido 
 *       no campo valor_pedido com o valor * quantidade.
@@ -143,10 +142,10 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 * retorno: lista <id, titulo, tipo>
 * obs:
 *  o campo tpag_tipo é um enum, para fins de agrupamento nos relatórios financeiros:
-     cr: crédito
-     db: débido
-     dn: dinheiro
-     ca: cartões de alimentação
+     1. dn: dinheiro
+     2. cr: crédito
+     3. db: débido
+     4. ca: cartões de alimentação
 *  Essa API é usada no processo de pagamento (fechamento) do pedido total ou parcial.
 * status:
 *    webserver: ok

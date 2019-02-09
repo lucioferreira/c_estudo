@@ -51,6 +51,7 @@ int main()
  	 printf("9 - fechar_pedido com usuario e pedido existentes\n");
  	 printf("10 - registrar_item_pedido\n");
  	 printf("11 - listar_tipo_pagamento\n");
+ 	 printf("12 - pagamento_pedido\n");
  	 printf("\n\n\n");
 
     printf("entre com uma opção: ");
@@ -102,6 +103,10 @@ int main()
 		case 11: /* listar_tipo_pagamento */
 			puts("listar_tipo_pagamento ");
 			strcpy(json, "{\"id_usuario\":\"1\", \"cmd\":\"listar_tipo_pagamento\"}");
+			break;
+		case 12: /* pagamento_pedido */
+			puts("pagamento_pedido ");
+			strcpy(json, "{\"id_usuario\":\"1\", \"cmd\":\"pagamento_pedido\", \"id_pedido\":\"2\", \"categoria\":\"3\", \"id_tpag\":\"4\", \"valor\":\"500\"}");
 			break;
 		default:
 			puts("comando inexistente");

@@ -51,6 +51,7 @@ int cmd_abrir_pedido(char *json, char *resposta);
 int cmd_fechar_pedido(char *json, char *resposta);
 int cmd_registrar_item_pedido(char *json, char *resposta);
 int cmd_listar_tipo_pagamento(char *json, char *resposta);
+int cmd_pagamento_pedido(char *json, char *resposta);
 
 
 /* funções helper */
@@ -176,7 +177,10 @@ void connection_proxy (int sock) {
 	  		puts("==> listar_tipo_pagamento");
 	  		cmd_listar_tipo_pagamento(buffer, resposta);
 	  		printf("<==: %s\n", resposta);
-	  		
+	  	} else if(strcmp(comando, "pagamento_pedido" ) == 0) {
+	  		puts("==> pagamento_pedido");
+	  		cmd_pagamento_pedido(buffer, resposta);
+	  		printf("<==: %s\n", resposta);
 	  	} else {
 	  		puts(" ==> comando inexistente <==");
 	  	}
@@ -860,6 +864,90 @@ int cmd_registrar_item_pedido(char *json, char *resposta) {
 
 	return 0;	
 }
+
+
+/******** cmd_pagamento_pedido() ***************
+ Executa o comando da API cmd_pagamento_pedido
+ 1. verifica se o usuario existe. em caso negativo, retorna erro
+ 2. adiciona item na tabela de pagamento de pedido
+ TODO: analisar questões de troco 
+ TODO: adicionar validações (pedido existente, etc) 
+ *********************************************/
+
+
+int cmd_pagamento_pedido(char *json, char *resposta) {
+
+	char buf[512];
+	memset(&buf, 0, sizeof(buf));
+
+	/* pega os campos do json de entrada */
+	int id_usuario, id_pedido, cat, id_tpag, valor;
+	json_scanf(json, strlen(json), "{id_usuario:%d, id_pedido:%d, categoria:%d, valor:%d, id_tpag:%d}", 
+		&id_usuario, &id_pedido, &cat, &valor, &id_tpag);
+
+	/* usuario existe? */
+	if(get_id_usuario(id_usuario) == -1) {
+		char errobuf[1024];
+		memset( &errobuf, 0, sizeof(errobuf));
+		struct json_out out = JSON_OUT_BUF(errobuf, sizeof(errobuf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro pagamento_pedido", "id usuario inexistente");
+		strcpy(resposta, errobuf);
+		return -1;
+	}
+	
+	/* cria um novo registro pagamento de pedido (atendimento) */
+	sqlite3 *conn;
+	const char* db = SQLITE_DB;
+	int error = 0;
+	sqlite3_stmt *insert_stmt = NULL;
+
+	error = sqlite3_open(db, &conn);
+	if (error) {
+		puts("Falha ao abrir o banco de dados");
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	char *qr_item = "insert into pagamento (id_ped, id_tpag, valor, categoria) "
+                    " values (?,?,?,?)";
+
+   int rc = sqlite3_prepare_v2(conn, qr_item, -1, &insert_stmt, NULL);
+	if(SQLITE_OK != rc) {
+		fprintf(stderr, "Erro ao preparar o comando de insert no pagamento de pedido %s (%i): %s\n", qr_item, rc, sqlite3_errmsg(conn));
+		sqlite3_close(conn);
+		return -1;
+	}
+
+	sqlite3_bind_int(insert_stmt, 1, id_pedido);
+	sqlite3_bind_int(insert_stmt, 2, id_tpag);
+	sqlite3_bind_int(insert_stmt, 3, valor);
+	sqlite3_bind_int(insert_stmt, 4, cat);
+
+	/* executa a inclusão */
+	rc = sqlite3_step(insert_stmt);
+	if(SQLITE_DONE != rc) {
+		char errobuf[1024];
+		memset( &errobuf, 0, sizeof(errobuf));
+		struct json_out out = JSON_OUT_BUF(errobuf, sizeof(errobuf));
+		json_printf(&out, "{status: %Q , resposta:%Q}", "erro pagamento_pedido", "impedido de inserir registro");
+		strcpy(resposta, errobuf);
+		fprintf(stderr, "Erro ao inserir item de pagamento de pedido no bd (%i): %s\n", rc, sqlite3_errmsg(conn));
+		sqlite3_finalize(insert_stmt);
+		sqlite3_close(conn);
+		return -1;
+	} else {
+		printf("Pagamento de Pedido inserido com sucesso\n\n");
+	}
+
+	sprintf(buf, "{\"status\":\"ok pagamento_pedido\",\"resposta\":{\"mensagem\": \"ok\"}}" );
+   strcpy(resposta, buf);
+
+   sqlite3_finalize(insert_stmt);
+   sqlite3_close(conn);
+
+	return 0;	
+}
+
 
 /******** cmd_listar_tipo_pagamento() ***************
  Executa o comando da API cmd_listar_tipo_pagamento

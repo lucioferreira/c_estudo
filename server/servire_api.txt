@@ -158,10 +158,12 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 * pagamento_pedido
 *  efetua pagamento total ou parcial de um pedido aberto
 * parametros:
+	  id_usuario
      id_pedido
-     categoria: enum (total, parcial)
+     categoria: enum (1.total, 2.parcial)
      id_tipo_pagamento
      valor
+     status: enum(1.ok, 2.cancelado)
 * retorno:
 * obs:
 *   pagamento com categoria "total": irá gerar um registro apenas na tabela pagamento e
@@ -171,6 +173,7 @@ ex.: {"status":"erro atualizar_status_mesa", "resposta":"mesa inexistente"}
 *       um registro para cada parcial. Ao final de todos os pagamentos parciais, chamar
 *       a API fecha_pedido. Os lançamentos parciais serão acumulados no campo ped_valor_pago na
 *       tabela pedido.
+*   TODO: adicionar uma api para mudança de status do item de pagamento
 *    webserver: ok
 *    app: em desenvolvimento
 */
